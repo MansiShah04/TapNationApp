@@ -4,7 +4,11 @@ A demo app to help developers integrate Sequence Embedded Wallet into their Reac
 
 ### Preview
 
-https://github.com/0xsequence/demo-waas-react-native/assets/11508521/157cab83-1f26-4d8a-b62d-fc9c28d2c50d
+
+
+
+https://github.com/user-attachments/assets/fe0eb6e0-cf54-4599-b6f4-4e3305f244da
+
 
 ---
 
