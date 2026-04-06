@@ -40,6 +40,7 @@ import CoinAnimation from "./Component/CoinAnimation";
 import LottieView from "lottie-react-native";
 import { Int32 } from "react-native/Libraries/Types/CodegenTypes";
 import OfferCard from "./Component/OfferCard";
+import TapGame from "./Component/TapGame";
 
 
 //#region declareation
@@ -49,6 +50,7 @@ const provider = new ethers.JsonRpcProvider(RPC);
 //#endregion
 export default function App() {
   const balanceAnim = useRef(new Animated.Value(0)).current;    // 💰 Animated Balance
+  const [activeOffer, setActiveOffer] = useState(null);
   const [offers, setOffers] = useState<any[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -56,6 +58,8 @@ export default function App() {
 
   const [showCoin, setShowCoin] = useState(false);
    const [showSuccess, setShowSuccess] = useState(false);
+   const [result, setResult] = useState(null);
+    const [showFail, setShowFail] = useState(false);
 const [pendingReward, setPendingReward] = useState(0);
 
   const [isEmailAuthInProgress, setIsEmailAuthInProgress] = useState(false);
@@ -149,13 +153,33 @@ const [pendingReward, setPendingReward] = useState(0);
 
   //#region claim
 
-const handleClaim = async (reward: number) => {
- const newBalance = (parseFloat(balance) + reward).toFixed(4);
-  setBalance(newBalance);
-setShowSuccess(true);
+const handleClaim = async (reward: number, offer: any) => {
+    setActiveOffer(offer);
+setPendingReward(reward);
+//  const newBalance = (parseFloat(balance) + reward).toFixed(4);
+//   setBalance(newBalance);
+// setShowSuccess(true);
 
   setShowCoin(false);
 };
+const onClaimed = async () => {
+
+ const newBalance = (parseFloat(balance) + pendingReward).toFixed(4);
+  setBalance(newBalance);
+setShowSuccess(true);
+ setResult("win");
+    setActiveOffer(null);
+setPendingReward(0);
+  setShowCoin(false);
+};
+
+const onClaimFailed = async () => {
+setShowFail(true);
+ setResult("fail");
+    setActiveOffer(null);
+setPendingReward(0);
+};
+
 
   //#endregion
 
@@ -456,11 +480,21 @@ useEffect(() => {
     offer={offer}
     index={index}
     onClaim={(reward) => {
-      handleClaim(reward);
-      setShowSuccess(true);
+      handleClaim(reward, offer);
     }}
   />
 ))}
+
+{activeOffer && (
+  <TapGame
+    onSuccess={() => {
+      onClaimed();
+    }}
+    onClose={() => {
+      onClaimFailed();
+    }}
+  />
+)}
 
           {/* 🌊 Streaming indicator */}
           {isStreaming && (
@@ -516,29 +550,61 @@ useEffect(() => {
         </View>
       )}
 
-      {/* 🎉 SUCCESS LOTTIE OVERLAY */}
-      {showSuccess && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "rgba(0,0,0,0.7)",
-          }}
-        >
-          <LottieView
-            source={require("./assets/animations/Success.json")}
-            autoPlay
-            loop={false}
-            onAnimationFinish={() => setShowSuccess(false)}
-            style={{ width: 220, height: 220 }}
-          />
-        </View>
-      )}
+{result && (
+  <View
+    style={{
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "rgba(0,0,0,0.85)",
+    }}
+  >
+    {/* 🎉 LOTTIE */}
+    <LottieView
+      source={
+        result === "win"
+          ? require("./assets/animations/Success.json")
+          : require("./assets/animations/fail.json")
+      }
+      autoPlay
+      loop={false}
+      style={{ width: 220, height: 220 }}
+      onAnimationFinish={() => setResult(null)}
+    />
+
+    {/* 🎯 TEXT */}
+    <Text
+      style={{
+        color: result === "win" ? "#22c55e" : "#ef4444",
+        fontSize: 26,
+        fontWeight: "900",
+        marginTop: 10,
+        letterSpacing: 1.5,
+      }}
+    >
+      {result === "win"
+        ? "CONGRATULATIONS!"
+        : "BETTER LUCK NEXT TIME"}
+    </Text>
+
+    {/* 💬 SUBTEXT */}
+    <Text
+      style={{
+        color: "#9ca3af",
+        marginTop: 6,
+        fontSize: 14,
+      }}
+    >
+      {result === "win"
+        ? "Reward unlocked 🎉"
+        : "Almost there, try again ⚡"}
+    </Text>
+  </View>
+)}
       {!walletAddress && !isEmailAuthInProgress  && (
         <>
           <View
