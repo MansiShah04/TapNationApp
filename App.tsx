@@ -12,7 +12,8 @@ import {
   Pressable,
   ScrollView,
   Animated,
-  Easing} from "react-native";
+  Easing
+} from "react-native";
 import {
   AuthRequest,
   exchangeCodeAsync,
@@ -56,8 +57,8 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState<string>("0");
-   const [result, setResult] = useState(null);
-const [pendingReward, setPendingReward] = useState(0);
+  const [result, setResult] = useState(null);
+  const [pendingReward, setPendingReward] = useState(0);
 
   const [isEmailAuthInProgress, setIsEmailAuthInProgress] = useState(false);
 
@@ -66,7 +67,7 @@ const [pendingReward, setPendingReward] = useState(0);
   useEffect(() => {
     isSignedIn(setWalletAddress);
   }, []);
-    useEffect(() => {
+  useEffect(() => {
     Animated.timing(balanceAnim, {
       toValue: balance as unknown as Int32,
       duration: 800,
@@ -75,10 +76,10 @@ const [pendingReward, setPendingReward] = useState(0);
     }).start();
   }, [balance]);
 
-   // 💥 Pulse Effect
+  // 💥 Pulse Effect
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-    useEffect(() => {
+  useEffect(() => {
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -95,8 +96,8 @@ const [pendingReward, setPendingReward] = useState(0);
     ).start();
   }, [walletAddress]);
 
-  
-    useEffect(() => {
+
+  useEffect(() => {
     if (walletAddress) {
       loadWallet();
       startStreamingOffers();
@@ -137,513 +138,508 @@ const [pendingReward, setPendingReward] = useState(0);
 
   //#region offers streaming
   const startStreamingOffers = async () => {
-  setIsStreaming(true);
-  setOffers([]);
+    setIsStreaming(true);
+    setOffers([]);
 
-  await streamOffers((newOffer) => {
-    setOffers((prev) => [...prev, newOffer]);
-  });
+    await streamOffers((newOffer) => {
+      setOffers((prev) => [...prev, newOffer]);
+    });
 
-  setIsStreaming(false);
-};
+    setIsStreaming(false);
+  };
   //#endregion
 
   //#region claim
 
-const handleClaim = async (offer: any) => {
+  const handleClaim = async (offer: any) => {
     setActiveOffer(offer);
-setPendingReward(offer?.reward);
-};
-const onClaimed = async () => {
+    setPendingReward(offer?.reward);
+  };
+  const onClaimed = async () => {
 
- const newBalance = (parseFloat(balance) + pendingReward).toFixed(4);
-  setBalance(newBalance);
- setResult("win");
+    const newBalance = (parseFloat(balance) + pendingReward).toFixed(4);
+    setBalance(newBalance);
+    setResult("win");
     setActiveOffer(null);
-setPendingReward(0);
-};
+    setPendingReward(0);
+  };
 
-const onClaimFailed = async () => {
- setResult("fail");
+  const onClaimFailed = async () => {
+    setResult("fail");
     setActiveOffer(null);
-setPendingReward(0);
-};
+    setPendingReward(0);
+  };
 
 
   //#endregion
 
   //#region style
   const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10, backgroundColor: "#0f172a"},
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
- title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#38bdf8",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  label: { marginTop: 10, color: "gray" },
-  value: { fontSize: 16, marginTop: 4 },
-   card: {
-    backgroundColor: "#1e293b",
-    padding: 16,
-    borderRadius: 16,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: "#334155",
+    container: { flex: 1, padding: 10, backgroundColor: "#0f172a" },
+    center: { flex: 1, justifyContent: "center", alignItems: "center" },
+    title: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: "#38bdf8",
+      textAlign: "center",
+      marginBottom: 20,
+    },
+    label: { marginTop: 10, color: "gray" },
+    value: { fontSize: 16, marginTop: 4 },
+    card: {
+      backgroundColor: "#1e293b",
+      padding: 16,
+      borderRadius: 16,
+      marginTop: 12,
+      borderWidth: 1,
+      borderColor: "#334155",
 
-    // glow effect
-    shadowColor: "#38bdf8",
-    shadowOpacity: 0.6,
-    shadowRadius: 10,
-    elevation: 6,
-  },
+      // glow effect
+      shadowColor: "#38bdf8",
+      shadowOpacity: 0.6,
+      shadowRadius: 10,
+      elevation: 6,
+    },
 
-  icon: {
-    fontSize: 22,
-    marginRight: 8,
-  },
- offerTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#e2e8f0",
-  },
+    icon: {
+      fontSize: 22,
+      marginRight: 8,
+    },
+    offerTitle: {
+      fontSize: 16,
+      fontWeight: "bold",
+      color: "#e2e8f0",
+    },
 
-  rewardContainer: {
-    marginTop: 12,
-    backgroundColor: "#0f172a",
-    padding: 10,
-    borderRadius: 10,
-    alignItems: "center",
-  },
+    rewardContainer: {
+      marginTop: 12,
+      backgroundColor: "#0f172a",
+      padding: 10,
+      borderRadius: 10,
+      alignItems: "center",
+    },
 
-  rewardText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#22c55e",
-  },
+    rewardText: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: "#22c55e",
+    },
 
-  claimBtn: {
-    marginTop: 14,
-    backgroundColor: "#3b82f6",
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
+    claimBtn: {
+      marginTop: 14,
+      backgroundColor: "#3b82f6",
+      paddingVertical: 12,
+      borderRadius: 12,
+      alignItems: "center",
 
-    shadowColor: "#3b82f6",
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
-    elevation: 8,
-  },
+      shadowColor: "#3b82f6",
+      shadowOpacity: 0.8,
+      shadowRadius: 10,
+      elevation: 8,
+    },
 
-  claimText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 15,
-  },
-  walletCard: {
-    backgroundColor: "#1e293b",
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#334155",
-  },
+    claimText: {
+      color: "white",
+      fontWeight: "bold",
+      fontSize: 15,
+    },
+    walletCard: {
+      backgroundColor: "#1e293b",
+      padding: 20,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: "#334155",
+    },
 
-  sectionTitle: {
-    color: "#94a3b8",
-    marginTop: 10,
-    fontSize: 14,
-  },
+    sectionTitle: {
+      color: "#94a3b8",
+      marginTop: 10,
+      fontSize: 14,
+    },
 
-  address: {
-    color: "#e2e8f0",
-    fontSize: 16,
-    marginTop: 4,
-  },
+    address: {
+      color: "#e2e8f0",
+      fontSize: 16,
+      marginTop: 4,
+    },
 
-  balance: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#22c55e",
-    marginTop: 8,
-  },
-});
+    balance: {
+      fontSize: 28,
+      fontWeight: "bold",
+      color: "#22c55e",
+      marginTop: 8,
+    },
+  });
   //#endregion
-const refreshScale = useRef(new Animated.Value(1)).current;
+  const refreshScale = useRef(new Animated.Value(1)).current;
 
-const handleRefreshPress = () => {
-  Animated.sequence([
-    Animated.spring(refreshScale, { toValue: 0.9, useNativeDriver: true }),
-    Animated.spring(refreshScale, { toValue: 1.1, useNativeDriver: true }),
-    Animated.spring(refreshScale, { toValue: 1, useNativeDriver: true }),
-  ]).start();
-
-  loadWallet();
-};
-const glowAnim = useRef(new Animated.Value(0)).current;
-
-useEffect(() => {
-  Animated.loop(
+  const handleRefreshPress = () => {
     Animated.sequence([
-      Animated.timing(glowAnim, {
-        toValue: 1,
-        duration: 1200,
-        useNativeDriver: false,
-      }),
-      Animated.timing(glowAnim, {
-        toValue: 0,
-        duration: 1200,
-        useNativeDriver: false,
-      }),
-    ])
-  ).start();
-}, [walletAddress]);
+      Animated.spring(refreshScale, { toValue: 0.9, useNativeDriver: true }),
+      Animated.spring(refreshScale, { toValue: 1.1, useNativeDriver: true }),
+      Animated.spring(refreshScale, { toValue: 1, useNativeDriver: true }),
+    ]).start();
+
+    loadWallet();
+  };
+  const glowAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 1200,
+          useNativeDriver: false,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0,
+          duration: 1200,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, [walletAddress]);
   return (
     <ScrollView>
-    <View style={styles.container}>
-      <StatusBar
-        barStyle={Platform.OS === "ios" ? "light-content" : "dark-content"}
-      />
-      {isEmailAuthInProgress && (
-        <EmailAuthView
-          onCancel={() => setIsEmailAuthInProgress(false)}
-          onSuccess={(walletAddress) => {
-            setIsEmailAuthInProgress(false);
-            setWalletAddress(walletAddress);
-          }}
+      <View style={styles.container}>
+        <StatusBar
+          barStyle={Platform.OS === "ios" ? "light-content" : "dark-content"}
         />
-      )}
+        {isEmailAuthInProgress && (
+          <EmailAuthView
+            onCancel={() => setIsEmailAuthInProgress(false)}
+            onSuccess={(walletAddress) => {
+              setIsEmailAuthInProgress(false);
+              setWalletAddress(walletAddress);
+            }}
+          />
+        )}
 
-      {isEmailConflictModalOpen && (
-        <EmailConflictWarningView
-          info={emailConflictInfo}
-          onCancel={() => {
-            setIsEmailAuthInProgress(false);
-            setIsEmailConflictModalOpen(false);
-            setEmailConflictInfo(undefined);
-            forceCreateFuncRef.current = null;
-          }}
-          onConfirm={() => {
-            setIsEmailConflictModalOpen(false);
-            setEmailConflictInfo(undefined);
-            forceCreateFuncRef.current?.();
-          }}
-        />
-      )}
+        {isEmailConflictModalOpen && (
+          <EmailConflictWarningView
+            info={emailConflictInfo}
+            onCancel={() => {
+              setIsEmailAuthInProgress(false);
+              setIsEmailConflictModalOpen(false);
+              setEmailConflictInfo(undefined);
+              forceCreateFuncRef.current = null;
+            }}
+            onConfirm={() => {
+              setIsEmailConflictModalOpen(false);
+              setEmailConflictInfo(undefined);
+              forceCreateFuncRef.current?.();
+            }}
+          />
+        )}
 
-   {walletAddress && (
-        <OfferwallScreen
-  walletAddress={walletAddress}
-  balance={balance as unknown as number}
-  offers={offers}
-  isStreaming={isStreaming}
-  isGenerating={offers.length < 3}
-  claimedToday={12}
-  activeOffersCount={offers.length}
-  onRefreshBalance={handleRefreshPress}
-  onSignOut={async () => { await sequenceWaas.dropSession(); setWalletAddress(null); }}
-  renderOfferCard={(offer, index) => (
-    <OfferCard key={offer.id} offer={offer} index={index} onPlay={handleClaim} />
-  )}
-/>)}
-{walletAddress && activeOffer && (
-  <TapGame
-    onSuccess={() => {
-      onClaimed();
-    }}
-    onClose={() => {
-      onClaimFailed();
-    }}
-  />
-)}
+        {walletAddress && (
+          <OfferwallScreen
+            walletAddress={walletAddress}
+            balance={balance as unknown as number}
+            offers={offers}
+            isStreaming={isStreaming}
+            isGenerating={offers.length < 3}
+            claimedToday={12}
+            activeOffersCount={offers.length}
+            onRefreshBalance={handleRefreshPress}
+            onSignOut={async () => { await sequenceWaas.dropSession(); setWalletAddress(null); }}
+            renderOfferCard={(offer, index) => (
+              <OfferCard key={offer.id} offer={offer} index={index} onPlay={handleClaim} />
+            )}
+          />)}
+        {walletAddress && activeOffer && (
+          <TapGame
+            onSuccess={() => {
+              onClaimed();
+            }}
+            onClose={() => {
+              onClaimFailed();
+            }}
+          />
+        )}
 
-          {/* 🌊 Streaming indicator */}
-          {walletAddress &&isStreaming && (
-            <Text style={{ color: "#6b7280", marginTop: 10 }}>
-              Fetching new quests...
-            </Text>
-          )}
-
-{result && (
-  <View
-    style={{
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: "rgba(0,0,0,0.85)",
-    }}
-  >
-    {/* 🎉 LOTTIE */}
-    <LottieView
-      source={
-        result === "win"
-          ? require("./assets/animations/Success.json")
-          : require("./assets/animations/fail.json")
-      }
-      autoPlay
-      loop={false}
-      style={{ width: 220, height: 220 }}
-      onAnimationFinish={() => setResult(null)}
-    />
-
-    {/* 🎯 TEXT */}
-    <Text
-      style={{
-        color: result === "win" ? "#22c55e" : "#ef4444",
-        fontSize: 26,
-        fontWeight: "900",
-        marginTop: 10,
-        letterSpacing: 1.5,
-      }}
-    >
-      {result === "win"
-        ? "CONGRATULATIONS!"
-        : "BETTER LUCK NEXT TIME"}
-    </Text>
-
-    {/* 💬 SUBTEXT */}
-    <Text
-      style={{
-        color: "#9ca3af",
-        marginTop: 6,
-        fontSize: 14,
-      }}
-    >
-      {result === "win"
-        ? "Reward unlocked 🎉"
-        : "Almost there, try again ⚡"}
-    </Text>
-  </View>
-)}
-      {!walletAddress && !isEmailAuthInProgress  && (
-        <>
+        {result && (
           <View
             style={{
-              alignItems: "center",
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
               justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: "rgba(0,0,0,0.85)",
             }}
           >
-            <Image
-              style={{
-                resizeMode: "contain",
-              }}
-              source={require("./assets/sequence-icon.png")}
+            {/* 🎉 LOTTIE */}
+            <LottieView
+              source={
+                result === "win"
+                  ? require("./assets/animations/Success.json")
+                  : require("./assets/animations/fail.json")
+              }
+              autoPlay
+              loop={false}
+              style={{ width: 220, height: 220 }}
+              onAnimationFinish={() => setResult(null)}
             />
-          </View>
 
-          <View style={{ marginBottom: 50,  alignItems: "center",
-                justifyContent: "center", }}>
-            <Text 
-             style={{
-          fontSize: 32,
-          fontWeight: "bold",
-          color: "#38bdf8",
-          textShadowColor: "#38bdf8",
-          textShadowRadius: 10,
-          marginBottom: 10,
-        }}>
-              Tap Nation
+            {/* 🎯 TEXT */}
+            <Text
+              style={{
+                color: result === "win" ? "#22c55e" : "#ef4444",
+                fontSize: 26,
+                fontWeight: "900",
+                marginTop: 10,
+                letterSpacing: 1.5,
+              }}
+            >
+              {result === "win"
+                ? "CONGRATULATIONS!"
+                : "BETTER LUCK NEXT TIME"}
             </Text>
-            {/* Subtitle */}
-      <Text
-        style={{
-          color: "#94a3b8",
-          marginTop: 20
-        }}
-      >
-        Play. Earn. Win.
-      </Text>
-          </View>
 
-          {isLoggingIn ? (
+            {/* 💬 SUBTEXT */}
+            <Text
+              style={{
+                color: "#9ca3af",
+                marginTop: 6,
+                fontSize: 14,
+              }}
+            >
+              {result === "win"
+                ? "Reward unlocked 🎉"
+                : "Almost there, try again ⚡"}
+            </Text>
+          </View>
+        )}
+        {!walletAddress && !isEmailAuthInProgress && (
+          <>
             <View
               style={{
                 alignItems: "center",
                 justifyContent: "center",
-                paddingVertical: 20,
               }}
             >
-              <ActivityIndicator size="large" color="#26316f" />
+              <Image
+                style={{
+                  resizeMode: "contain",
+                }}
+                source={require("./assets/sequence-icon.png")}
+              />
             </View>
-          ) : (
-            <View style={{ alignItems: "center", justifyContent: "center" }}>
-               {/* 🎮 Game Style Button */}
-      <Pressable
-         onPress={async () => {
-                  setIsLoggingIn(true);
-                  try {
-                    const signInResult = await sequenceWaas.signIn(
-                      { guest: true },
-                      randomName()
-                    );
 
-                    if (signInResult.wallet) {
-                      setWalletAddress(signInResult.wallet);
-                    } else {
-                      console.error("No wallet address after guest sign in");
-                    }
-                  } catch (error) {
-                    console.error("Guest sign in failed:", error);
-                  } finally {
-                    setIsLoggingIn(false);
-                  }
+            <View style={{
+              marginBottom: 50, alignItems: "center",
+              justifyContent: "center",
+            }}>
+              <Text
+                style={{
+                  fontSize: 32,
+                  fontWeight: "bold",
+                  color: "#38bdf8",
+                  textShadowColor: "#38bdf8",
+                  textShadowRadius: 10,
+                  marginBottom: 10,
+                }}>
+                Tap Nation
+              </Text>
+              {/* Subtitle */}
+              <Text
+                style={{
+                  color: "#94a3b8",
+                  marginTop: 20
                 }}
-        style={({ pressed }) => ({
-          width: "60%",
-           alignItems: "center",
-                justifyContent: "center",
-          backgroundColor: pressed ? "#2563eb" : "#3b82f6",
-          paddingVertical: 14,
-          paddingHorizontal: 40,
-          borderRadius: 12,
-          shadowColor: "#3b82f6",
-          shadowOpacity: 0.8,
-          shadowRadius: 10,
-          elevation: 10,
-          margin: 15,
-        })}
-      >
-        <Text
-          style={{
-            color: "white",
-            fontSize: 16,
-            fontWeight: "bold",
-          }}
-        >
-          Continue as Guest
-        </Text>
-      </Pressable>
+              >
+                Play. Earn. Win.
+              </Text>
+            </View>
 
-       {/* 🎮 Game Style Button */}
-      <Pressable
-         onPress={() => {
-                  setIsEmailAuthInProgress(true);
+            {isLoggingIn ? (
+              <View
+                style={{
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 20,
                 }}
-        style={({ pressed }) => ({
-            width: "60%",
-           alignItems: "center",
-                justifyContent: "center",
-          backgroundColor: pressed ? "#2563eb" : "#3b82f6",
-          paddingVertical: 14,
-          paddingHorizontal: 40,
-          borderRadius: 12,
-          shadowColor: "#3b82f6",
-          shadowOpacity: 0.8,
-          shadowRadius: 10,
-          elevation: 10,
-          margin: 15,
-        })}
-      >
-        <Text
-          style={{
-            color: "white",
-            fontSize: 16,
-            fontWeight: "bold",
-          }}
-        >
-         Sign in with Email
-        </Text>
-      </Pressable>
-            {/* 🎮 Game Style Button */}
-      <Pressable
-         onPress={async () => {
-                  setIsLoggingIn(true);
-                  try {
-                    const result = await signInWithGoogle();
-                    if (result?.walletAddress) {
-                      setWalletAddress(result.walletAddress);
+              >
+                <ActivityIndicator size="large" color="#26316f" />
+              </View>
+            ) : (
+              <View style={{ alignItems: "center", justifyContent: "center" }}>
+                {/* 🎮 Game Style Button */}
+                <Pressable
+                  onPress={async () => {
+                    setIsLoggingIn(true);
+                    try {
+                      const signInResult = await sequenceWaas.signIn(
+                        { guest: true },
+                        randomName()
+                      );
+
+                      if (signInResult.wallet) {
+                        setWalletAddress(signInResult.wallet);
+                      } else {
+                        console.error("No wallet address after guest sign in");
+                      }
+                    } catch (error) {
+                      console.error("Guest sign in failed:", error);
+                    } finally {
+                      setIsLoggingIn(false);
                     }
-                  } catch (error) {
-                    console.error("Google sign in failed:", error);
-                  } finally {
-                    setIsLoggingIn(false);
-                  }
-                }}
-        style={({ pressed }) => ({
-            width: "60%",
-           alignItems: "center",
-                justifyContent: "center",
-          backgroundColor: pressed ? "#2563eb" : "#3b82f6",
-          paddingVertical: 14,
-          paddingHorizontal: 40,
-          borderRadius: 12,
-          shadowColor: "#3b82f6",
-          shadowOpacity: 0.8,
-          shadowRadius: 10,
-          elevation: 10,
-          margin: 15,
-        })}
-      >
-        <Text
-          style={{
-            color: "white",
-            fontSize: 16,
-            fontWeight: "bold",
-          }}
-        >
-          Sign in with Google
-        </Text>
-      </Pressable>
-             
-              {/* 🎮 Game Style Button */}
-      <Pressable
-         onPress={async () => {
-                  setIsLoggingIn(true);
-                  try {
-                    if (Platform.OS === "ios") {
-                      const result = await signInWithAppleIOS();
+                  }}
+                  style={({ pressed }) => ({
+                    width: "60%",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: pressed ? "#2563eb" : "#3b82f6",
+                    paddingVertical: 14,
+                    paddingHorizontal: 40,
+                    borderRadius: 12,
+                    shadowColor: "#3b82f6",
+                    shadowOpacity: 0.8,
+                    shadowRadius: 10,
+                    elevation: 10,
+                    margin: 15,
+                  })}
+                >
+                  <Text
+                    style={{
+                      color: "white",
+                      fontSize: 16,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Continue as Guest
+                  </Text>
+                </Pressable>
+
+                {/* 🎮 Game Style Button */}
+                <Pressable
+                  onPress={() => {
+                    setIsEmailAuthInProgress(true);
+                  }}
+                  style={({ pressed }) => ({
+                    width: "60%",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: pressed ? "#2563eb" : "#3b82f6",
+                    paddingVertical: 14,
+                    paddingHorizontal: 40,
+                    borderRadius: 12,
+                    shadowColor: "#3b82f6",
+                    shadowOpacity: 0.8,
+                    shadowRadius: 10,
+                    elevation: 10,
+                    margin: 15,
+                  })}
+                >
+                  <Text
+                    style={{
+                      color: "white",
+                      fontSize: 16,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Sign in with Email
+                  </Text>
+                </Pressable>
+                {/* 🎮 Game Style Button */}
+                <Pressable
+                  onPress={async () => {
+                    setIsLoggingIn(true);
+                    try {
+                      const result = await signInWithGoogle();
                       if (result?.walletAddress) {
                         setWalletAddress(result.walletAddress);
                       }
+                    } catch (error) {
+                      console.error("Google sign in failed:", error);
+                    } finally {
+                      setIsLoggingIn(false);
                     }
-                    if (Platform.OS === "android") {
-                      const result = await signInWithAppleAndroid();
-                      if (result?.walletAddress) {
-                        setWalletAddress(result.walletAddress);
+                  }}
+                  style={({ pressed }) => ({
+                    width: "60%",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: pressed ? "#2563eb" : "#3b82f6",
+                    paddingVertical: 14,
+                    paddingHorizontal: 40,
+                    borderRadius: 12,
+                    shadowColor: "#3b82f6",
+                    shadowOpacity: 0.8,
+                    shadowRadius: 10,
+                    elevation: 10,
+                    margin: 15,
+                  })}
+                >
+                  <Text
+                    style={{
+                      color: "white",
+                      fontSize: 16,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Sign in with Google
+                  </Text>
+                </Pressable>
+
+                {/* 🎮 Game Style Button */}
+                <Pressable
+                  onPress={async () => {
+                    setIsLoggingIn(true);
+                    try {
+                      if (Platform.OS === "ios") {
+                        const result = await signInWithAppleIOS();
+                        if (result?.walletAddress) {
+                          setWalletAddress(result.walletAddress);
+                        }
                       }
+                      if (Platform.OS === "android") {
+                        const result = await signInWithAppleAndroid();
+                        if (result?.walletAddress) {
+                          setWalletAddress(result.walletAddress);
+                        }
+                      }
+                    } catch (error) {
+                      console.error("Apple sign in failed:", error);
+                    } finally {
+                      setIsLoggingIn(false);
                     }
-                  } catch (error) {
-                    console.error("Apple sign in failed:", error);
-                  } finally {
-                    setIsLoggingIn(false);
-                  }
-                }}
-        style={({ pressed }) => ({
-            width: "60%",
-           alignItems: "center",
-                justifyContent: "center",
-          backgroundColor: pressed ? "#2563eb" : "#3b82f6",
-          paddingVertical: 14,
-          paddingHorizontal: 40,
-          borderRadius: 12,
-          shadowColor: "#3b82f6",
-          shadowOpacity: 0.8,
-          shadowRadius: 10,
-          elevation: 10,
-           margin: 15,
-        })}
-      >
-        <Text
-          style={{
-            color: "white",
-            fontSize: 16,
-            fontWeight: "bold",
-          }}
-        >
-          Signin with Apple
-        </Text>
-      </Pressable>
-              
-            </View>
-          )}
-        </>
-      )}
-    </View>
+                  }}
+                  style={({ pressed }) => ({
+                    width: "60%",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: pressed ? "#2563eb" : "#3b82f6",
+                    paddingVertical: 14,
+                    paddingHorizontal: 40,
+                    borderRadius: 12,
+                    shadowColor: "#3b82f6",
+                    shadowOpacity: 0.8,
+                    shadowRadius: 10,
+                    elevation: 10,
+                    margin: 15,
+                  })}
+                >
+                  <Text
+                    style={{
+                      color: "white",
+                      fontSize: 16,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Signin with Apple
+                  </Text>
+                </Pressable>
+
+              </View>
+            )}
+          </>
+        )}
+      </View>
     </ScrollView>
   );
 }
