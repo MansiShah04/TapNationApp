@@ -41,6 +41,7 @@ import LottieView from "lottie-react-native";
 import { Int32 } from "react-native/Libraries/Types/CodegenTypes";
 import OfferCard from "./Component/OfferCard";
 import TapGame from "./Component/TapGame";
+import OfferwallScreen from "./Component/OfferWallScreen";
 
 
 //#region declareation
@@ -55,11 +56,7 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState<string>("0");
-
-  const [showCoin, setShowCoin] = useState(false);
-   const [showSuccess, setShowSuccess] = useState(false);
    const [result, setResult] = useState(null);
-    const [showFail, setShowFail] = useState(false);
 const [pendingReward, setPendingReward] = useState(0);
 
   const [isEmailAuthInProgress, setIsEmailAuthInProgress] = useState(false);
@@ -156,25 +153,17 @@ const [pendingReward, setPendingReward] = useState(0);
 const handleClaim = async (offer: any) => {
     setActiveOffer(offer);
 setPendingReward(offer?.reward);
-//  const newBalance = (parseFloat(balance) + reward).toFixed(4);
-//   setBalance(newBalance);
-// setShowSuccess(true);
-
-  setShowCoin(false);
 };
 const onClaimed = async () => {
 
  const newBalance = (parseFloat(balance) + pendingReward).toFixed(4);
   setBalance(newBalance);
-setShowSuccess(true);
  setResult("win");
     setActiveOffer(null);
 setPendingReward(0);
-  setShowCoin(false);
 };
 
 const onClaimFailed = async () => {
-setShowFail(true);
  setResult("fail");
     setActiveOffer(null);
 setPendingReward(0);
@@ -344,148 +333,21 @@ useEffect(() => {
       )}
 
    {walletAddress && (
-        <View style={{ flex: 1, padding: 20, backgroundColor: "#020617" }}>
-          {/* 💼 Wallet Card */}
-          <Animated.View
-            style={{
-              transform: [{ scale: pulseAnim }],
-              backgroundColor: "#0f172a",
-              padding: 20,
-              borderRadius: 20,
-              marginBottom: 20,
-
-              shadowColor: "#3b82f6",
-              shadowOpacity: 0.8,
-              shadowRadius: 20,
-              elevation: 15,
-            }}
-          >
-            <Text style={{ color: "#94a3b8" }}>💼 Wallet</Text>
-
-            <Text
-              style={{
-                color: "#fff",
-                fontSize: 16,
-                marginVertical: 6,
-              }}
-            >
-              {walletAddress.slice(0, 6)}...
-              {walletAddress.slice(-4)}
-            </Text>
-
-            {/* 💰 Animated Balance */}
-            <Animated.Text
-              style={{
-                color: "#22c55e",
-                fontSize: 30,
-                fontWeight: "bold",
-              }}
-            >
-              {balanceAnim.interpolate({
-                inputRange: [0, balance],
-                outputRange: ["0", `${balance}`],
-              })}{" "}
-              AVAX
-            </Animated.Text>
-          </Animated.View>
-
-         <Animated.View
-  style={{
-    transform: [{ scale: refreshScale }],
-    marginBottom: 20,
-  }}
->
-  <Pressable
-    onPress={handleRefreshPress}
-    style={{
-      borderRadius: 18,
-      overflow: "hidden",
-
-      // ✨ Glow aura
-      shadowColor: "#3b82f6",
-      shadowOpacity: 0.9,
-      shadowRadius: 20,
-      elevation: 12,
-    }}
-  >
-    <View
-      style={{
-        backgroundColor: "#1d4ed8",
-        paddingVertical: 16,
-        alignItems: "center",
-        borderRadius: 18,
-      }}
-    >
-      <Text
-        style={{
-          color: "#fff",
-          fontSize: 16,
-          fontWeight: "bold",
-          letterSpacing: 1,
-        }}
-      >
-        ⚡ REFRESH BALANCE
-      </Text>
-    </View>
-  </Pressable>
-</Animated.View>
-
-         <Animated.View
-  style={{
-    marginBottom: 15,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    backgroundColor: "#0f172a",
-
-    // ✨ Dynamic glow
-    shadowColor: "#22c55e",
-    shadowOpacity: glowAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.3, 0.9],
-    }),
-    shadowRadius: glowAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [5, 20],
-    }),
-    elevation: 10,
-  }}
->
-  <Text
-    style={{
-      color: "#22c55e",
-      fontSize: 18,
-      fontWeight: "bold",
-      letterSpacing: 1,
-    }}
-  >
-    ACTIVE QUESTS
-  </Text>
-
-  <Text
-    style={{
-      color: "#64748b",
-      fontSize: 12,
-      marginTop: 2,
-    }}
-  >
-    Complete tasks → Earn rewards
-  </Text>
-</Animated.View>
-
-          {/* 🎯 Offers */}
-          {offers.map((offer, index) => (
-  <OfferCard
-    key={offer.id}
-    offer={offer}
-    index={index}
-    onPlay={(offer) => {
-      handleClaim(offer);
-    }}
-  />
-))}
-
-{activeOffer && (
+        <OfferwallScreen
+  walletAddress={walletAddress}
+  balance={balance as unknown as number}
+  offers={offers}
+  isStreaming={isStreaming}
+  isGenerating={offers.length < 3}
+  claimedToday={12}
+  activeOffersCount={offers.length}
+  onRefreshBalance={handleRefreshPress}
+  onSignOut={async () => { await sequenceWaas.dropSession(); setWalletAddress(null); }}
+  renderOfferCard={(offer, index) => (
+    <OfferCard key={offer.id} offer={offer} index={index} onPlay={handleClaim} />
+  )}
+/>)}
+{walletAddress && activeOffer && (
   <TapGame
     onSuccess={() => {
       onClaimed();
@@ -497,58 +359,11 @@ useEffect(() => {
 )}
 
           {/* 🌊 Streaming indicator */}
-          {isStreaming && (
+          {walletAddress &&isStreaming && (
             <Text style={{ color: "#6b7280", marginTop: 10 }}>
               Fetching new quests...
             </Text>
           )}
-
-    <Animated.View
-  style={{
-    transform: [{ scale: refreshScale }],
-    marginBottom: 20,
-  }}
->
-  <Pressable
-     onPress={async () => {
-                setWalletAddress(null);
-                await sequenceWaas.dropSession();
-              }}
-    style={{
-      borderRadius: 18,
-      overflow: "hidden",
-
-      // ✨ Glow aura
-      shadowColor: "#3b82f6",
-      shadowOpacity: 0.9,
-      shadowRadius: 20,
-      elevation: 12,
-    }}
-  >
-    <View
-      style={{
-        backgroundColor: "#1d4ed8",
-        paddingVertical: 16,
-        alignItems: "center",
-        borderRadius: 18,
-      }}
-    >
-      <Text
-        style={{
-          color: "#fff",
-          fontSize: 16,
-          fontWeight: "bold",
-          letterSpacing: 1,
-        }}
-      >
-        Sign out
-      </Text>
-    </View>
-  </Pressable>
-</Animated.View>
-        
-        </View>
-      )}
 
 {result && (
   <View
