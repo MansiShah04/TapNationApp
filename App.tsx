@@ -153,9 +153,9 @@ const [pendingReward, setPendingReward] = useState(0);
 
   //#region claim
 
-const handleClaim = async (reward: number, offer: any) => {
+const handleClaim = async (offer: any) => {
     setActiveOffer(offer);
-setPendingReward(reward);
+setPendingReward(offer?.reward);
 //  const newBalance = (parseFloat(balance) + reward).toFixed(4);
 //   setBalance(newBalance);
 // setShowSuccess(true);
@@ -479,8 +479,8 @@ useEffect(() => {
     key={offer.id}
     offer={offer}
     index={index}
-    onClaim={(reward) => {
-      handleClaim(reward, offer);
+    onPlay={(offer) => {
+      handleClaim(offer);
     }}
   />
 ))}
