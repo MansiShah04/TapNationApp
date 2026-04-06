@@ -10,7 +10,9 @@ import {
   Image,
   StyleSheet,
   Pressable,
-  ScrollView} from "react-native";
+  ScrollView,
+  Animated,
+  Easing} from "react-native";
 import {
   AuthRequest,
   exchangeCodeAsync,
@@ -36,6 +38,8 @@ import { ethers } from "ethers";
 import { streamOffers } from "./Services/MockOfferStream";
 import CoinAnimation from "./Component/CoinAnimation";
 import LottieView from "lottie-react-native";
+import { Int32 } from "react-native/Libraries/Types/CodegenTypes";
+import OfferCard from "./Component/OfferCard";
 
 
 //#region declareation
@@ -44,6 +48,7 @@ const RPC = "https://api.avax-test.network/ext/bc/C/rpc";
 const provider = new ethers.JsonRpcProvider(RPC);
 //#endregion
 export default function App() {
+  const balanceAnim = useRef(new Animated.Value(0)).current;    // 💰 Animated Balance
   const [offers, setOffers] = useState<any[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -60,6 +65,36 @@ const [pendingReward, setPendingReward] = useState(0);
   useEffect(() => {
     isSignedIn(setWalletAddress);
   }, []);
+    useEffect(() => {
+    Animated.timing(balanceAnim, {
+      toValue: balance as unknown as Int32,
+      duration: 800,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: false,
+    }).start();
+  }, [balance]);
+
+   // 💥 Pulse Effect
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [walletAddress]);
+
+  
     useEffect(() => {
     if (walletAddress) {
       loadWallet();
@@ -115,18 +150,13 @@ const [pendingReward, setPendingReward] = useState(0);
   //#region claim
 
 const handleClaim = async (reward: number) => {
-  setPendingReward(reward);
-  setShowCoin(true);
-};
-
-const onCoinFinish = () => {
-  const newBalance = (parseFloat(balance) + pendingReward).toFixed(4);
+ const newBalance = (parseFloat(balance) + reward).toFixed(4);
   setBalance(newBalance);
 setShowSuccess(true);
 
   setShowCoin(false);
-  setPendingReward(0);
 };
+
   //#endregion
 
   //#region style
@@ -227,7 +257,35 @@ setShowSuccess(true);
   },
 });
   //#endregion
+const refreshScale = useRef(new Animated.Value(1)).current;
 
+const handleRefreshPress = () => {
+  Animated.sequence([
+    Animated.spring(refreshScale, { toValue: 0.9, useNativeDriver: true }),
+    Animated.spring(refreshScale, { toValue: 1.1, useNativeDriver: true }),
+    Animated.spring(refreshScale, { toValue: 1, useNativeDriver: true }),
+  ]).start();
+
+  loadWallet();
+};
+const glowAnim = useRef(new Animated.Value(0)).current;
+
+useEffect(() => {
+  Animated.loop(
+    Animated.sequence([
+      Animated.timing(glowAnim, {
+        toValue: 1,
+        duration: 1200,
+        useNativeDriver: false,
+      }),
+      Animated.timing(glowAnim, {
+        toValue: 0,
+        duration: 1200,
+        useNativeDriver: false,
+      }),
+    ])
+  ).start();
+}, [walletAddress]);
   return (
     <ScrollView>
     <View style={styles.container}>
@@ -261,120 +319,226 @@ setShowSuccess(true);
         />
       )}
 
-    {walletAddress && (
-         <View style={styles.container}>
-     <Text style={styles.title}>🎮 Your Wallet</Text>
- <View style={styles.walletCard}>
-    <Text style={styles.sectionTitle}>💼 Wallet Address</Text>
+   {walletAddress && (
+        <View style={{ flex: 1, padding: 20, backgroundColor: "#020617" }}>
+          {/* 💼 Wallet Card */}
+          <Animated.View
+            style={{
+              transform: [{ scale: pulseAnim }],
+              backgroundColor: "#0f172a",
+              padding: 20,
+              borderRadius: 20,
+              marginBottom: 20,
 
-    <Text style={styles.address}>
-      {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
-    </Text>
+              shadowColor: "#3b82f6",
+              shadowOpacity: 0.8,
+              shadowRadius: 20,
+              elevation: 15,
+            }}
+          >
+            <Text style={{ color: "#94a3b8" }}>💼 Wallet</Text>
 
-    <Text style={styles.sectionTitle}>💰 Balance</Text>
+            <Text
+              style={{
+                color: "#fff",
+                fontSize: 16,
+                marginVertical: 6,
+              }}
+            >
+              {walletAddress.slice(0, 6)}...
+              {walletAddress.slice(-4)}
+            </Text>
 
-    <Text style={styles.balance}>{balance} AVAX</Text>
-  </View>
+            {/* 💰 Animated Balance */}
+            <Animated.Text
+              style={{
+                color: "#22c55e",
+                fontSize: 30,
+                fontWeight: "bold",
+              }}
+            >
+              {balanceAnim.interpolate({
+                inputRange: [0, balance],
+                outputRange: ["0", `${balance}`],
+              })}{" "}
+              AVAX
+            </Animated.Text>
+          </Animated.View>
 
- <Pressable
-        onPress={loadWallet}
-        style={({ pressed }) => ({
-          width: "90%",
-           alignItems: "center",
-                justifyContent: "center",
-          backgroundColor: pressed ? "#2563eb" : "#3b82f6",
-          paddingVertical: 14,
-          paddingHorizontal: 40,
-          borderRadius: 12,
-          shadowColor: "#3b82f6",
-          shadowOpacity: 0.8,
-          shadowRadius: 10,
-          elevation: 10,
-          margin: 15,
-          marginBottom: 25,
-        })}
+         <Animated.View
+  style={{
+    transform: [{ scale: refreshScale }],
+    marginBottom: 20,
+  }}
+>
+  <Pressable
+    onPress={handleRefreshPress}
+    style={{
+      borderRadius: 18,
+      overflow: "hidden",
+
+      // ✨ Glow aura
+      shadowColor: "#3b82f6",
+      shadowOpacity: 0.9,
+      shadowRadius: 20,
+      elevation: 12,
+    }}
+  >
+    <View
+      style={{
+        backgroundColor: "#1d4ed8",
+        paddingVertical: 16,
+        alignItems: "center",
+        borderRadius: 18,
+      }}
+    >
+      <Text
+        style={{
+          color: "#fff",
+          fontSize: 16,
+          fontWeight: "bold",
+          letterSpacing: 1,
+        }}
       >
-        <Text
+        ⚡ REFRESH BALANCE
+      </Text>
+    </View>
+  </Pressable>
+</Animated.View>
+
+         <Animated.View
+  style={{
+    marginBottom: 15,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: "#0f172a",
+
+    // ✨ Dynamic glow
+    shadowColor: "#22c55e",
+    shadowOpacity: glowAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.3, 0.9],
+    }),
+    shadowRadius: glowAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [5, 20],
+    }),
+    elevation: 10,
+  }}
+>
+  <Text
+    style={{
+      color: "#22c55e",
+      fontSize: 18,
+      fontWeight: "bold",
+      letterSpacing: 1,
+    }}
+  >
+    ACTIVE QUESTS
+  </Text>
+
+  <Text
+    style={{
+      color: "#64748b",
+      fontSize: 12,
+      marginTop: 2,
+    }}
+  >
+    Complete tasks → Earn rewards
+  </Text>
+</Animated.View>
+
+          {/* 🎯 Offers */}
+          {offers.map((offer, index) => (
+  <OfferCard
+    key={offer.id}
+    offer={offer}
+    index={index}
+    onClaim={(reward) => {
+      handleClaim(reward);
+      setShowSuccess(true);
+    }}
+  />
+))}
+
+          {/* 🌊 Streaming indicator */}
+          {isStreaming && (
+            <Text style={{ color: "#6b7280", marginTop: 10 }}>
+              Fetching new quests...
+            </Text>
+          )}
+
+    <Animated.View
+  style={{
+    transform: [{ scale: refreshScale }],
+    marginBottom: 20,
+  }}
+>
+  <Pressable
+     onPress={async () => {
+                setWalletAddress(null);
+                await sequenceWaas.dropSession();
+              }}
+    style={{
+      borderRadius: 18,
+      overflow: "hidden",
+
+      // ✨ Glow aura
+      shadowColor: "#3b82f6",
+      shadowOpacity: 0.9,
+      shadowRadius: 20,
+      elevation: 12,
+    }}
+  >
+    <View
+      style={{
+        backgroundColor: "#1d4ed8",
+        paddingVertical: 16,
+        alignItems: "center",
+        borderRadius: 18,
+      }}
+    >
+      <Text
+        style={{
+          color: "#fff",
+          fontSize: 16,
+          fontWeight: "bold",
+          letterSpacing: 1,
+        }}
+      >
+        Sign out
+      </Text>
+    </View>
+  </Pressable>
+</Animated.View>
+        
+        </View>
+      )}
+
+      {/* 🎉 SUCCESS LOTTIE OVERLAY */}
+      {showSuccess && (
+        <View
           style={{
-            color: "white",
-            fontSize: 16,
-            fontWeight: "bold",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0,0,0,0.7)",
           }}
         >
-         🔄 Refresh Balance
-        </Text>
-      </Pressable>
-
-
-      <Text style={styles.title}>Offers</Text>
-
-{offers.map((offer) => (
-  <View key={offer.id} style={styles.card}>
-    
-    {/* 🎮 Title Row */}
-    <View style={{ flexDirection: "row", alignItems: "center" }}>
-      <Text style={styles.icon}>🎮</Text>
-      <Text style={styles.offerTitle}>{offer.title}</Text>
-    </View>
-
-    {/* 💰 Reward */}
-    <View style={styles.rewardContainer}>
-      <Text style={styles.rewardText}>💰 {offer.reward} AVAX</Text>
-    </View>
-
-    {/* 🚀 Claim Button */}
-    <Pressable
-      onPress={() => handleClaim(offer.reward)}
-      style={({ pressed }) => [
-        styles.claimBtn,
-        { transform: [{ scale: pressed ? 0.95 : 1 }] },
-      ]}
-    >
-      <Text style={styles.claimText}>Claim Reward 🚀</Text>
-    </Pressable>
-  </View>
-))}
-     
-
-      {showCoin && <CoinAnimation onFinish={onCoinFinish} />}
-      {showSuccess && (
-  <View style={{
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.7)"
-  }}>
-    <LottieView
-      source={require("./assets/animations/Success.json")}
-      autoPlay
-      loop={false}
-      style={{ width: 200, height: 200 }}
-      onAnimationFinish={() => setShowSuccess(false)}
-    />
-  </View>
-)}
-      {/* Streaming indicator (subtle, not blocking) */}
-      {isStreaming && (
-        <Text style={{ marginTop: 10, color: "gray" }}>
-          Fetching more offers...
-        </Text>
+          <LottieView
+            source={require("./assets/animations/Success.json")}
+            autoPlay
+            loop={false}
+            onAnimationFinish={() => setShowSuccess(false)}
+            style={{ width: 220, height: 220 }}
+          />
+        </View>
       )}
-      <View style={{ marginTop: 40 }} />
-      <Button
-
-                    title="Sign out"
-                    onPress={async () => {
-                      setWalletAddress(null);
-                      await sequenceWaas.dropSession();
-                    }}
-                  />
-          </View>
-       
-    )}
       {!walletAddress && !isEmailAuthInProgress  && (
         <>
           <View
