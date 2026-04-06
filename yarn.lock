@@ -7234,6 +7234,11 @@ loose-envify@^1.0.0, loose-envify@^1.1.0, loose-envify@^1.4.0:
   dependencies:
     js-tokens "^3.0.0 || ^4.0.0"
 
+lottie-react-native@^7.3.6:
+  version "7.3.6"
+  resolved "https://registry.npmjs.org/lottie-react-native/-/lottie-react-native-7.3.6.tgz"
+  integrity sha512-TevFHRvFURh6GlaqLKrSNXuKAxvBvFCiXfS7FXQI1K/ikOStgAwWLFPGjW0i1qB2/VzPACKmRs+535VjHUZZZQ==
+
 lru-cache@^10.0.1:
   version "10.4.3"
   resolved "https://registry.npmjs.org/lru-cache/-/lru-cache-10.4.3.tgz"
@@ -8503,7 +8508,7 @@ react-native-url-polyfill@^2.0.0:
   dependencies:
     whatwg-url-without-unicode "8.0.0-3"
 
-react-native@*, react-native@>=0.71.0, react-native@0.75.3:
+react-native@*, react-native@>=0.46, react-native@>=0.71.0, react-native@0.75.3:
   version "0.75.3"
   resolved "https://registry.npmjs.org/react-native/-/react-native-0.75.3.tgz"
   integrity sha512-+Ne6u5H+tPo36sme19SCd1u2UID2uo0J/XzAJarxmrDj4Nsdi44eyUDKtQHmhgxjRGsuVJqAYrMK0abLSq8AHw==

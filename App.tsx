@@ -35,6 +35,7 @@ import EmailConflictWarningView from "./components/EmailConflictWarningView";
 import { ethers } from "ethers";
 import { streamOffers } from "./Services/MockOfferStream";
 import CoinAnimation from "./Component/CoinAnimation";
+import LottieView from "lottie-react-native";
 
 
 //#region declareation
@@ -49,6 +50,7 @@ export default function App() {
   const [balance, setBalance] = useState<string>("0");
 
   const [showCoin, setShowCoin] = useState(false);
+   const [showSuccess, setShowSuccess] = useState(false);
 const [pendingReward, setPendingReward] = useState(0);
 
   const [isEmailAuthInProgress, setIsEmailAuthInProgress] = useState(false);
@@ -120,6 +122,7 @@ const handleClaim = async (reward: number) => {
 const onCoinFinish = () => {
   const newBalance = (parseFloat(balance) + pendingReward).toFixed(4);
   setBalance(newBalance);
+setShowSuccess(true);
 
   setShowCoin(false);
   setPendingReward(0);
@@ -334,6 +337,26 @@ const onCoinFinish = () => {
      
 
       {showCoin && <CoinAnimation onFinish={onCoinFinish} />}
+      {showSuccess && (
+  <View style={{
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.7)"
+  }}>
+    <LottieView
+      source={require("./assets/animations/Success.json")}
+      autoPlay
+      loop={false}
+      style={{ width: 200, height: 200 }}
+      onAnimationFinish={() => setShowSuccess(false)}
+    />
+  </View>
+)}
       {/* Streaming indicator (subtle, not blocking) */}
       {isStreaming && (
         <Text style={{ marginTop: 10, color: "gray" }}>
