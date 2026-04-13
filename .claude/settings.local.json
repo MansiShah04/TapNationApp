@@ -4,7 +4,10 @@
       "Bash(rm -rf node_modules)",
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx expo:*)"
+      "Bash(npx expo:*)",
+      "Bash(grep -n \"^export\" /d/Projects/TapNationApp/**/*.tsx /d/Projects/TapNationApp/**/*.ts)",
+      "Bash(rm -rf Component/ components/ Services/ hooks/ utils/)",
+      "Bash(rm -f styles.tsx cryptoSetup.ts polyfills.ts waasSetup.ts LoginScreen.tsx)"
     ]
   }
 }

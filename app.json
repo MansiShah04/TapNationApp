@@ -3,6 +3,7 @@
     "name": "Tap Nation",
     "icon": "./assets/app-icon.png",
     "slug": "demo-waas-react-native",
+    "scheme": "tapnation",
     "version": "1.0.8",
     "sdkVersion": "51.0.0",
     "platforms": ["ios", "android"],

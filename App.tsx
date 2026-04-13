@@ -1,14 +1,6 @@
-import "./cryptoSetup";
-import React, { useEffect, useRef, useState } from "react";
-import {
-  Platform,
-  StatusBar,
-  Text,
-  View,
-  StyleSheet,
-  Animated,
-  Easing
-} from "react-native";
+import "./src/config/cryptoSetup";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Platform, StatusBar, Text, View, Animated, StyleSheet } from "react-native";
 import {
   AuthRequest,
   exchangeCodeAsync,
@@ -19,25 +11,29 @@ import * as AppleAuthentication from "expo-apple-authentication";
 
 import {
   sequenceWaas,
-  iosGoogleRedirectUri,
-  iosGoogleClientId,
-  webGoogleClientId,
-} from "./waasSetup";
-import EmailAuthView from "./components/EmailAuthView";
+  IOS_GOOGLE_REDIRECT_URI,
+  IOS_GOOGLE_CLIENT_ID,
+  WEB_GOOGLE_CLIENT_ID,
+} from "./src/config/waasSetup";
+import { randomName } from "./src/utils/string";
+import { colors } from "./src/theme/colors";
+import type { GoogleUser, WaaSSession } from "./src/types/auth";
+import type { Offer, GameType } from "./src/types/offer";
 
-import { randomName } from "./utils/string";
-import EmailConflictWarningView from "./components/EmailConflictWarningView";
-import { ethers } from "ethers";
-import { streamOffers } from "./Services/MockOfferStream";
-import OfferCard from "./Component/OfferCard";
-import TapGame from "./Component/TapGame";
-import OfferwallScreen from "./Component/OfferWallScreen";
-import LoginScreen from "./LoginScreen";
-import TapSpeedGame from "./Component/TapSpeed";
-import AvoidObstaclesGame from "./Component/AvoidObstaclesGame";
+import { useWallet } from "./src/hooks/useWallet";
+import { useOffers } from "./src/hooks/useOffers";
 
+import LoginScreen from "./src/components/auth/LoginScreen";
+import EmailAuthView from "./src/components/auth/EmailAuthView";
+import EmailConflictWarningView from "./src/components/auth/EmailConflictWarningView";
+import TapGame from "./src/components/games/TapGame";
+import TapSpeedGame from "./src/components/games/TapSpeedGame";
+import AvoidObstaclesGame from "./src/components/games/AvoidObstaclesGame";
+import OfferCard from "./src/components/offers/OfferCard";
+import OfferWallScreen from "./src/components/offers/OfferWallScreen";
 
-// ─── Result Overlay (replaces Lottie) ────────────────────────────────────────
+// ─── Result overlay ──────────────────────────────────────────────────────────
+
 function ResultOverlay({ result, onFinish }: { result: "win" | "fail"; onFinish: () => void }) {
   const scale = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -49,46 +45,21 @@ function ResultOverlay({ result, onFinish }: { result: "win" | "fail"; onFinish:
     ]).start();
 
     const timer = setTimeout(() => {
-      Animated.timing(opacity, { toValue: 0, duration: 400, useNativeDriver: true }).start(() => {
-        onFinish();
-      });
+      Animated.timing(opacity, { toValue: 0, duration: 400, useNativeDriver: true }).start(onFinish);
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [scale, opacity, onFinish]);
 
   const isWin = result === "win";
-
   return (
-    <View
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "rgba(0,0,0,0.85)",
-        zIndex: 999,
-      }}
-    >
+    <View style={s.resultOverlay}>
       <Animated.View style={{ opacity, transform: [{ scale }], alignItems: "center" }}>
         <Text style={{ fontSize: 80 }}>{isWin ? "🎉" : "💥"}</Text>
-
-        <Text
-          style={{
-            color: isWin ? "#22c55e" : "#ef4444",
-            fontSize: 26,
-            fontWeight: "900",
-            marginTop: 10,
-            letterSpacing: 1.5,
-          }}
-        >
+        <Text style={[s.resultTitle, { color: isWin ? colors.green : colors.danger }]}>
           {isWin ? "CONGRATULATIONS!" : "BETTER LUCK NEXT TIME"}
         </Text>
-
-        <Text style={{ color: "#9ca3af", marginTop: 6, fontSize: 14 }}>
+        <Text style={s.resultSubtitle}>
           {isWin ? "Reward unlocked 🎉" : "Almost there, try again ⚡"}
         </Text>
       </Animated.View>
@@ -96,404 +67,58 @@ function ResultOverlay({ result, onFinish }: { result: "win" | "fail"; onFinish:
   );
 }
 
+// ─── Auth helpers (original Sequence demo approach) ──────────────────────────
 
-//#region declareation
-const RPC = "https://api.avax-test.network/ext/bc/C/rpc";
-
-const provider = new ethers.JsonRpcProvider(RPC);
-//#endregion
-export default function App() {
-  const balanceAnim = useRef(new Animated.Value(0)).current;    // 💰 Animated Balance
-  const [activeOffer, setActiveOffer] = useState<any>(null);
-  const [offers, setOffers] = useState<any[]>([]);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [balance, setBalance] = useState<string>("0");
-  const [result, setResult] = useState<"win" | "fail" | null>(null);
-  const [pendingReward, setPendingReward] = useState(0);
-
-  const [isEmailAuthInProgress, setIsEmailAuthInProgress] = useState(false);
-
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-  useEffect(() => {
-    isSignedIn(setWalletAddress);
-  }, []);
-  useEffect(() => {
-    Animated.timing(balanceAnim, {
-      toValue: parseFloat(balance) || 0,
-      duration: 800,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: false,
-    }).start();
-  }, [balance]);
-
-  // 💥 Pulse Effect
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.05,
-          duration: 700,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 700,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [walletAddress]);
-
-
-  useEffect(() => {
-    if (walletAddress) {
-      loadWallet();
-      startStreamingOffers();
-    }
-  }, [walletAddress]);
-  const [emailConflictInfo, setEmailConflictInfo] = useState<
-    EmailConflictInfo | undefined
-  >();
-  const [isEmailConflictModalOpen, setIsEmailConflictModalOpen] =
-    useState(false);
-  const forceCreateFuncRef = useRef<(() => Promise<void>) | null>(null);
-
-  sequenceWaas.onEmailConflict(async (info, forceCreate) => {
-    forceCreateFuncRef.current = forceCreate;
-    setEmailConflictInfo(info);
-    setIsEmailConflictModalOpen(true);
-  });
-
-
-
-  //#region load wallet
-  const loadWallet = async () => {
-    //if (!sequence) return;
-
-    try {
-
-      const balanceWei = await provider.getBalance(walletAddress as string);
-      const avax = ethers.formatEther(balanceWei);
-
-      setBalance(avax);
-    } catch (e) {
-      console.log("Wallet error", e);
-    } finally {
-    }
-  };
-
-  //#endregion
-
-  //#region offers streaming
-  const startStreamingOffers = async () => {
-    setIsStreaming(true);
-    setOffers([]);
-
-    await streamOffers((newOffer) => {
-      setOffers((prev) => [...prev, newOffer]);
-    });
-
-    setIsStreaming(false);
-  };
-  //#endregion
-
-  //#region claim
-
-  const handleClaim = async (offer: any) => {
-    setActiveOffer(offer);
-    setPendingReward(offer?.reward);
-  };
-  const onClaimed = async () => {
-
-    const newBalance = (parseFloat(balance) + pendingReward).toFixed(4);
-    setBalance(newBalance);
-    setResult("win");
-    setActiveOffer(null);
-    setPendingReward(0);
-  };
-
-  const onClaimFailed = async () => {
-    setResult("fail");
-    setActiveOffer(null);
-    setPendingReward(0);
-  };
-
-
-  //#endregion
-
-  //#region style
-  const styles = StyleSheet.create({
-    container: { flex: 1, padding: 10, backgroundColor: "#0f172a" },
-    center: { flex: 1, justifyContent: "center", alignItems: "center" },
-    title: {
-      fontSize: 24,
-      fontWeight: "bold",
-      color: "#38bdf8",
-      textAlign: "center",
-      marginBottom: 20,
-    },
-    label: { marginTop: 10, color: "gray" },
-    value: { fontSize: 16, marginTop: 4 },
-    card: {
-      backgroundColor: "#1e293b",
-      padding: 16,
-      borderRadius: 16,
-      marginTop: 12,
-      borderWidth: 1,
-      borderColor: "#334155",
-
-      // glow effect
-      shadowColor: "#38bdf8",
-      shadowOpacity: 0.6,
-      shadowRadius: 10,
-      elevation: 6,
-    },
-
-    icon: {
-      fontSize: 22,
-      marginRight: 8,
-    },
-    offerTitle: {
-      fontSize: 16,
-      fontWeight: "bold",
-      color: "#e2e8f0",
-    },
-
-    rewardContainer: {
-      marginTop: 12,
-      backgroundColor: "#0f172a",
-      padding: 10,
-      borderRadius: 10,
-      alignItems: "center",
-    },
-
-    rewardText: {
-      fontSize: 18,
-      fontWeight: "bold",
-      color: "#22c55e",
-    },
-
-    claimBtn: {
-      marginTop: 14,
-      backgroundColor: "#3b82f6",
-      paddingVertical: 12,
-      borderRadius: 12,
-      alignItems: "center",
-
-      shadowColor: "#3b82f6",
-      shadowOpacity: 0.8,
-      shadowRadius: 10,
-      elevation: 8,
-    },
-
-    claimText: {
-      color: "white",
-      fontWeight: "bold",
-      fontSize: 15,
-    },
-    walletCard: {
-      backgroundColor: "#1e293b",
-      padding: 20,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: "#334155",
-    },
-
-    sectionTitle: {
-      color: "#94a3b8",
-      marginTop: 10,
-      fontSize: 14,
-    },
-
-    address: {
-      color: "#e2e8f0",
-      fontSize: 16,
-      marginTop: 4,
-    },
-
-    balance: {
-      fontSize: 28,
-      fontWeight: "bold",
-      color: "#22c55e",
-      marginTop: 8,
-    },
-  });
-  //#endregion
-  const refreshScale = useRef(new Animated.Value(1)).current;
-
-  const handleRefreshPress = () => {
-    Animated.sequence([
-      Animated.spring(refreshScale, { toValue: 0.9, useNativeDriver: true }),
-      Animated.spring(refreshScale, { toValue: 1.1, useNativeDriver: true }),
-      Animated.spring(refreshScale, { toValue: 1, useNativeDriver: true }),
-    ]).start();
-
-    loadWallet();
-  };
-  const glowAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 1,
-          duration: 1200,
-          useNativeDriver: false,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0,
-          duration: 1200,
-          useNativeDriver: false,
-        }),
-      ])
-    ).start();
-  }, [walletAddress]);
-  return (
-    <View style={styles.container}>
-      <StatusBar
-        barStyle={Platform.OS === "ios" ? "light-content" : "dark-content"}
-      />
-      {isEmailAuthInProgress && (
-        <EmailAuthView
-          onCancel={() => setIsEmailAuthInProgress(false)}
-          onSuccess={(walletAddress) => {
-            setIsEmailAuthInProgress(false);
-            setWalletAddress(walletAddress);
-          }}
-        />
-      )}
-
-      {isEmailConflictModalOpen && (
-        <EmailConflictWarningView
-          info={emailConflictInfo}
-          onCancel={() => {
-            setIsEmailAuthInProgress(false);
-            setIsEmailConflictModalOpen(false);
-            setEmailConflictInfo(undefined);
-            forceCreateFuncRef.current = null;
-          }}
-          onConfirm={() => {
-            setIsEmailConflictModalOpen(false);
-            setEmailConflictInfo(undefined);
-            forceCreateFuncRef.current?.();
-          }}
-        />
-      )}
-
-      {walletAddress && (
-        <OfferwallScreen
-          walletAddress={walletAddress}
-          balance={balance as unknown as number}
-          offers={offers}
-          isStreaming={isStreaming}
-          isGenerating={offers.length < 3}
-          claimedToday={12}
-          activeOffersCount={offers.length}
-          onRefreshBalance={handleRefreshPress}
-          onSignOut={async () => { await sequenceWaas.dropSession(); setWalletAddress(null); }}
-          renderOfferCard={(offer, index) => (
-            <OfferCard key={offer.id} offer={offer} index={index} onPlay={handleClaim} />
-          )}
-        />)}
-      {walletAddress && activeOffer!== null && activeOffer?.title === 'Tap-to-Stop' && (
-        <TapGame
-          onSuccess={() => {
-            onClaimed();
-          }}
-          onClose={() => {
-            onClaimFailed();
-          }}
-        />
-      )}
-
-       {walletAddress && activeOffer!== null && activeOffer?.title === 'Tap-to-Speed' && (
-        <TapSpeedGame
-          onSuccess={() => {
-            onClaimed();
-          }}
-          onClose={() => {
-            onClaimFailed();
-          }}
-        />
-      )}
-
-      {walletAddress && activeOffer!== null && activeOffer?.title === 'Avoid-Obstacles' && (
-        <AvoidObstaclesGame
-          onSuccess={() => {
-            onClaimed();
-          }}
-          onClose={() => {
-            onClaimFailed();
-          }}
-        />
-      )}
-
-      {result && (
-        <ResultOverlay result={result} onFinish={() => setResult(null)} />
-      )}
-      {!walletAddress && !isEmailAuthInProgress && (
-        <LoginScreen
-          isLoggingIn={isLoggingIn}
-          isEmailAuthInProgress={isEmailAuthInProgress}
-          setIsEmailAuthInProgress={setIsEmailAuthInProgress}
-          setIsLoggingIn={setIsLoggingIn}
-          setWalletAddress={setWalletAddress}
-          sequenceWaas={sequenceWaas}
-          randomName={randomName}
-          signInWithGoogle={signInWithGoogle}
-          signInWithApple={signInWithApple}
-        />
-      )}
-    </View>
-  );
+async function authenticateWithWaas(idToken: string): Promise<WaaSSession | null> {
+  try {
+    return await sequenceWaas.signIn({ idToken }, randomName());
+  } catch (e) {
+    console.log("error in authenticateWithWaas", JSON.stringify(e));
+  }
+  return null;
 }
 
-// Helpers
+async function fetchGoogleUserInfo(accessToken: string): Promise<GoogleUser["user"]> {
+  const response = await fetch(
+    "https://www.googleapis.com/oauth2/v3/userinfo",
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
 
-const isSignedIn = async (
-  setWalletAddress: React.Dispatch<React.SetStateAction<string | null>>
-) => {
-  const isSignedIn = await sequenceWaas.isSignedIn();
+  const json = await response.json();
 
-  if (isSignedIn) {
-    sequenceWaas.getAddress().then((address) => {
-      setWalletAddress(address);
-    });
-  }
-};
-
-type GoogleUser = {
-  user: {
-    id: string;
-    name: string | null;
-    givenName: string | null;
-    familyName: string | null;
-    photo: string | null;
+  return {
+    id: json.sub,
+    name: json.name,
+    givenName: json.given_name,
+    familyName: json.family_name,
+    photo: json.picture,
   };
-  idToken: string;
-};
+}
 
 const signInWithGoogle = async () => {
-  const redirectUri = `${iosGoogleRedirectUri}:/oauthredirect`;
+  const redirectUri = `${IOS_GOOGLE_REDIRECT_URI}:/oauthredirect`;
 
   const scopes = ["openid", "profile", "email"];
   const request = new AuthRequest({
-    clientId: iosGoogleClientId,
+    clientId: IOS_GOOGLE_CLIENT_ID,
     scopes,
     redirectUri,
     usePKCE: true,
     extraParams: {
-      audience: webGoogleClientId,
+      audience: WEB_GOOGLE_CLIENT_ID,
       include_granted_scopes: "true",
     },
   });
 
   const result = await request.promptAsync({
-    authorizationEndpoint: `https://accounts.google.com/o/oauth2/v2/auth`,
+    authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
   });
 
   if (result.type === "cancel") {
@@ -509,10 +134,10 @@ const signInWithGoogle = async () => {
   const configForTokenExchange: AccessTokenRequestConfig = {
     code: serverAuthCode,
     redirectUri,
-    clientId: iosGoogleClientId,
+    clientId: IOS_GOOGLE_CLIENT_ID,
     extraParams: {
       code_verifier: request?.codeVerifier || "",
-      audience: webGoogleClientId,
+      audience: WEB_GOOGLE_CLIENT_ID,
     },
   };
 
@@ -521,7 +146,6 @@ const signInWithGoogle = async () => {
   });
 
   const userInfo = await fetchGoogleUserInfo(tokenResponse.accessToken);
-
   const idToken = tokenResponse.idToken;
 
   if (!idToken) {
@@ -535,10 +159,7 @@ const signInWithGoogle = async () => {
   }
 
   return {
-    userInfo: {
-      user: userInfo,
-      idToken,
-    },
+    userInfo: { user: userInfo, idToken },
     walletAddress: waasSession.wallet,
   };
 };
@@ -552,67 +173,149 @@ const signInWithApple = async () => {
   });
 
   const idToken = credential.identityToken;
-
-  if (!idToken) {
-    throw new Error("No idToken");
-  }
+  if (!idToken) throw new Error("No idToken");
 
   const waasSession = await authenticateWithWaas(idToken);
-
-  if (!waasSession) {
-    throw new Error("No WaaS session");
-  }
+  if (!waasSession) throw new Error("No WaaS session");
 
   return {
-    userInfo: {
-      user: credential.user,
-      idToken,
-    },
+    userInfo: { user: credential.user, idToken },
     walletAddress: waasSession.wallet,
   };
 };
 
-const authenticateWithWaas = async (
-  idToken: string
-): Promise<{ sessionId: string; wallet: string } | null> => {
-  try {
-    const signInResult = await sequenceWaas.signIn(
-      {
-        idToken,
-      },
-      randomName()
-    );
+// ─── App ─────────────────────────────────────────────────────────────────────
 
-    return signInResult;
-  } catch (e) {
-    console.log("error in authenticateWithWaas", JSON.stringify(e));
-  }
+export default function App() {
+  const { walletAddress, setWalletAddress, balance, loadBalance, addReward, signOut } = useWallet();
+  const { offers, isStreaming, activeOffer, playOffer, clearActiveOffer } = useOffers(!!walletAddress);
 
-  return null;
-};
+  const [result, setResult] = useState<"win" | "fail" | null>(null);
+  const [isEmailAuthInProgress, setIsEmailAuthInProgress] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-const fetchGoogleUserInfo = async (
-  accessToken: string
-): Promise<GoogleUser["user"]> => {
-  const response = await fetch(
-    "https://www.googleapis.com/oauth2/v3/userinfo",
-    {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-    }
+  // Email conflict state
+  const [emailConflictInfo, setEmailConflictInfo] = useState<EmailConflictInfo | undefined>();
+  const [isEmailConflictOpen, setIsEmailConflictOpen] = useState(false);
+  const forceCreateRef = useRef<(() => Promise<void>) | null>(null);
+
+  useEffect(() => {
+    return sequenceWaas.onEmailConflict(async (info, forceCreate) => {
+      forceCreateRef.current = forceCreate;
+      setEmailConflictInfo(info);
+      setIsEmailConflictOpen(true);
+    });
+  }, []);
+
+  // ── Game result handlers ─────────────────────────────────────────────────
+
+  const pendingRewardRef = useRef(0);
+
+  const handlePlay = useCallback((offer: Offer) => {
+    pendingRewardRef.current = offer.reward;
+    playOffer(offer);
+  }, [playOffer]);
+
+  const handleGameWin = useCallback(() => {
+    addReward(pendingRewardRef.current);
+    setResult("win");
+    clearActiveOffer();
+    pendingRewardRef.current = 0;
+  }, [addReward, clearActiveOffer]);
+
+  const handleGameLose = useCallback(() => {
+    setResult("fail");
+    clearActiveOffer();
+    pendingRewardRef.current = 0;
+  }, [clearActiveOffer]);
+
+  const renderOfferCard = useCallback(
+    (offer: Offer, index: number) => (
+      <OfferCard key={offer.id} offer={offer} index={index} onPlay={handlePlay} />
+    ),
+    [handlePlay],
   );
 
-  const json: any = await response.json();
+  const gameTitle = activeOffer?.title as GameType | undefined;
 
-  return {
-    id: json.sub,
-    name: json.name,
-    givenName: json.given_name,
-    familyName: json.family_name,
-    photo: json.picture,
-  };
-};
+  return (
+    <View style={s.container}>
+      <StatusBar barStyle={Platform.OS === "ios" ? "light-content" : "dark-content"} />
+
+      {isEmailAuthInProgress && (
+        <EmailAuthView
+          onCancel={() => setIsEmailAuthInProgress(false)}
+          onSuccess={(addr) => { setIsEmailAuthInProgress(false); setWalletAddress(addr); }}
+        />
+      )}
+      {isEmailConflictOpen && (
+        <EmailConflictWarningView
+          info={emailConflictInfo}
+          onCancel={() => {
+            setIsEmailAuthInProgress(false);
+            setIsEmailConflictOpen(false);
+            setEmailConflictInfo(undefined);
+            forceCreateRef.current = null;
+          }}
+          onConfirm={() => {
+            setIsEmailConflictOpen(false);
+            setEmailConflictInfo(undefined);
+            forceCreateRef.current?.();
+          }}
+        />
+      )}
+
+      {walletAddress ? (
+        <OfferWallScreen
+          walletAddress={walletAddress}
+          balance={parseFloat(balance)}
+          offers={offers}
+          isStreaming={isStreaming}
+          isGenerating={offers.length < 3}
+          claimedToday={12}
+          activeOffersCount={offers.length}
+          onRefreshBalance={loadBalance}
+          onSignOut={signOut}
+          renderOfferCard={renderOfferCard}
+        />
+      ) : !isEmailAuthInProgress ? (
+        <LoginScreen
+          isLoggingIn={isLoggingIn}
+          setIsEmailAuthInProgress={setIsEmailAuthInProgress}
+          setIsLoggingIn={setIsLoggingIn}
+          setWalletAddress={setWalletAddress}
+          sequenceWaas={sequenceWaas}
+          randomName={randomName}
+          signInWithGoogle={signInWithGoogle}
+          signInWithApple={signInWithApple}
+        />
+      ) : null}
+
+      {walletAddress && gameTitle === "Tap-to-Stop" && (
+        <TapGame onSuccess={handleGameWin} onClose={handleGameLose} />
+      )}
+      {walletAddress && gameTitle === "Tap-to-Speed" && (
+        <TapSpeedGame onSuccess={handleGameWin} onClose={handleGameLose} />
+      )}
+      {walletAddress && gameTitle === "Avoid-Obstacles" && (
+        <AvoidObstaclesGame onSuccess={handleGameWin} onClose={handleGameLose} />
+      )}
+
+      {result && <ResultOverlay result={result} onFinish={() => setResult(null)} />}
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bg },
+  resultOverlay: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.overlay,
+    zIndex: 999,
+  },
+  resultTitle: { fontSize: 26, fontWeight: "900", marginTop: 10, letterSpacing: 1.5 },
+  resultSubtitle: { color: colors.muted, marginTop: 6, fontSize: 14 },
+});
