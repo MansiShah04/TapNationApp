@@ -22,7 +22,7 @@ export const streamOffers = async (
     },
     {
       id: "2",
-      title: "Aviator Rush",
+      title: "Tap-to-Speed",
       description: "Cash out at 2× · 5 rounds",
       reward: 0.08,
       rewardUnit: "AVAX",
@@ -34,7 +34,7 @@ export const streamOffers = async (
     },
     {
       id: "3",
-      title: "Load Runner X",
+      title: "Avoid-Obstacles",
       description: "Run 10 km in-game · Endless",
       reward: 0.32,
       rewardUnit: "AVAX",

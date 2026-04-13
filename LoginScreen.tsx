@@ -278,7 +278,6 @@ export default function LoginScreen({
             {/* Footer note */}
             <Text style={s.footer}>
               Non-custodial · No seed phrases ·{" "}
-              <Text style={{ color: C.purple }}>Sequence SDK</Text>
             </Text>
           </>
         )}

@@ -44,6 +44,8 @@ import OfferCard from "./Component/OfferCard";
 import TapGame from "./Component/TapGame";
 import OfferwallScreen from "./Component/OfferWallScreen";
 import LoginScreen from "./LoginScreen";
+import TapSpeedGame from "./Component/TapSpeed";
+import AvoidObstaclesGame from "./Component/AvoidObstaclesGame";
 
 
 //#region declareation
@@ -53,7 +55,7 @@ const provider = new ethers.JsonRpcProvider(RPC);
 //#endregion
 export default function App() {
   const balanceAnim = useRef(new Animated.Value(0)).current;    // 💰 Animated Balance
-  const [activeOffer, setActiveOffer] = useState(null);
+  const [activeOffer, setActiveOffer] = useState<any>(null);
   const [offers, setOffers] = useState<any[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -348,8 +350,30 @@ export default function App() {
             <OfferCard key={offer.id} offer={offer} index={index} onPlay={handleClaim} />
           )}
         />)}
-      {walletAddress && activeOffer && (
+      {walletAddress && activeOffer!== null && activeOffer?.title === 'Tap-to-Stop' && (
         <TapGame
+          onSuccess={() => {
+            onClaimed();
+          }}
+          onClose={() => {
+            onClaimFailed();
+          }}
+        />
+      )}
+
+       {walletAddress && activeOffer!== null && activeOffer?.title === 'Tap-to-Speed' && (
+        <TapSpeedGame
+          onSuccess={() => {
+            onClaimed();
+          }}
+          onClose={() => {
+            onClaimFailed();
+          }}
+        />
+      )}
+
+      {walletAddress && activeOffer!== null && activeOffer?.title === 'Avoid-Obstacles' && (
+        <AvoidObstaclesGame
           onSuccess={() => {
             onClaimed();
           }}
