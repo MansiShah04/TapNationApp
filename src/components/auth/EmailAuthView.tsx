@@ -142,7 +142,7 @@ export default function EmailAuthView({ onCancel, onSuccess }: EmailAuthViewProp
         placeholderTextColor={colors.muted}
         style={[s.input, s.codeInput]}
       />
-      <Animated.View style={[s.primaryBtnWrap, { transform: [{ scale: btnScale }], width: "100%" }]}>
+      <Animated.View style={[s.verifyBtnWrap, { transform: [{ scale: btnScale }] }]}>
         <Pressable
           onPress={handleVerify}
           onPressIn={onPressIn}
@@ -262,6 +262,7 @@ const s = StyleSheet.create({
   },
   btnRow: { flexDirection: "row", gap: 10, width: "100%" },
   primaryBtnWrap: { flex: 1, borderRadius: 14 },
+  verifyBtnWrap: { width: "100%", borderRadius: 14 },
   primaryBtn: {
     backgroundColor: colors.purple,
     borderRadius: 14,
