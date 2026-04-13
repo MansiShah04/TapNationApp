@@ -29,7 +29,8 @@
       }
     },
     "splash": {
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#0a0c1a",
+      "resizeMode": "contain"
     },
     "extra": {
       "eas": {
