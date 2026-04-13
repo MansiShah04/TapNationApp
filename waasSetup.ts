@@ -1,6 +1,7 @@
+import "./polyfills";
 import { SequenceWaaS, SecureStoreBackend } from "@0xsequence/waas";
 import * as SecureStore from "expo-secure-store";
-import { MMKV } from "react-native-mmkv";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 class ExpoSecureStoreBackend implements SecureStoreBackend {
   private getKey(dbName: string, dbStoreName: string, key: string): string {
@@ -68,18 +69,17 @@ export const iosGoogleClientId =
 export const iosGoogleRedirectUri =
   "com.googleusercontent.apps.970987756660-eu0kjc9mda0iuiuktoq0lbme9mmn1j8m";
 
-const storage = new MMKV();
-
 const localStorage = {
   get: async (key: string) => {
-    return storage.getString(key) ?? null;
+    const value = await AsyncStorage.getItem(key);
+    return value ?? null;
   },
   set: async (key: string, value: string) => {
     if (value === null) {
-      storage.delete(key);
+      await AsyncStorage.removeItem(key);
       return;
     }
-    storage.set(key, value);
+    await AsyncStorage.setItem(key, value);
   },
 };
 

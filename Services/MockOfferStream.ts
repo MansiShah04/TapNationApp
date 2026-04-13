@@ -1,4 +1,15 @@
-import type { Offer } from "./OfferCard";
+interface Offer {
+  id: string;
+  title: string;
+  description: string;
+  reward: number;
+  rewardUnit?: string;
+  progress: number;
+  progressLabel?: string;
+  icon: string;
+  tags?: string[];
+  variant?: "hot" | "premium" | "default";
+}
 
 // Simulates an AI streaming endpoint that pushes offers one-by-one
 // Replace the loop body with a real fetch() SSE / OpenAI stream in production

@@ -1,6 +1,6 @@
 module.exports = {
   preset: "react-native",
-  setupFilesAfterEnv: [],
+  setupFilesAfterSetup: [],
   transform: {
     "^.+\\.(js|jsx|ts|tsx)$": "babel-jest",
   },
@@ -10,7 +10,7 @@ module.exports = {
     "**/?(*.)+(spec|test).+(ts|tsx|js)",
   ],
   transformIgnorePatterns: [
-    "node_modules/(?!(jest-)?react-native|@react-native|@react-native-community|@react-navigation|expo(nent)?|@expo(nent)?/.*|react-navigation|@sentry/react-native|react-native-url-polyfill|react-native-quick-crypto)",
+    "node_modules/(?!(jest-)?react-native|@react-native|@react-native-community|@react-navigation|expo(nent)?|@expo(nent)?/.*|react-navigation|@sentry/react-native|@react-native-async-storage/async-storage)",
   ],
   moduleNameMapper: {},
 };

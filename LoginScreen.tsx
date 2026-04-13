@@ -130,8 +130,7 @@ export default function LoginScreen({
   sequenceWaas,
   randomName,
   signInWithGoogle,
-  signInWithAppleIOS,
-  signInWithAppleAndroid,
+  signInWithApple,
 }: any) {
   const glowAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -182,10 +181,7 @@ export default function LoginScreen({
   const handleApple = async () => {
     setIsLoggingIn(true);
     try {
-      const result =
-        Platform.OS === "ios"
-          ? await signInWithAppleIOS()
-          : await signInWithAppleAndroid();
+      const result = await signInWithApple();
       if (result?.walletAddress) setWalletAddress(result.walletAddress);
     } catch (e) {
       console.error("Apple sign in failed:", e);

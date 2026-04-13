@@ -1,16 +1,11 @@
 import "./cryptoSetup";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Button,
   Platform,
   StatusBar,
   Text,
   View,
-  Image,
   StyleSheet,
-  Pressable,
-  ScrollView,
   Animated,
   Easing
 } from "react-native";
@@ -20,10 +15,7 @@ import {
   AccessTokenRequestConfig,
 } from "expo-auth-session";
 import { EmailConflictInfo } from "@0xsequence/waas";
-import appleAuth, {
-  AppleButton,
-  appleAuthAndroid,
-} from "@invertase/react-native-apple-authentication";
+import * as AppleAuthentication from "expo-apple-authentication";
 
 import {
   sequenceWaas,
@@ -37,15 +29,72 @@ import { randomName } from "./utils/string";
 import EmailConflictWarningView from "./components/EmailConflictWarningView";
 import { ethers } from "ethers";
 import { streamOffers } from "./Services/MockOfferStream";
-import CoinAnimation from "./Component/CoinAnimation";
-import LottieView from "lottie-react-native";
-import { Int32 } from "react-native/Libraries/Types/CodegenTypes";
 import OfferCard from "./Component/OfferCard";
 import TapGame from "./Component/TapGame";
 import OfferwallScreen from "./Component/OfferWallScreen";
 import LoginScreen from "./LoginScreen";
 import TapSpeedGame from "./Component/TapSpeed";
 import AvoidObstaclesGame from "./Component/AvoidObstaclesGame";
+
+
+// ─── Result Overlay (replaces Lottie) ────────────────────────────────────────
+function ResultOverlay({ result, onFinish }: { result: "win" | "fail"; onFinish: () => void }) {
+  const scale = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 8, bounciness: 12 }),
+      Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+    ]).start();
+
+    const timer = setTimeout(() => {
+      Animated.timing(opacity, { toValue: 0, duration: 400, useNativeDriver: true }).start(() => {
+        onFinish();
+      });
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const isWin = result === "win";
+
+  return (
+    <View
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0,0,0,0.85)",
+        zIndex: 999,
+      }}
+    >
+      <Animated.View style={{ opacity, transform: [{ scale }], alignItems: "center" }}>
+        <Text style={{ fontSize: 80 }}>{isWin ? "🎉" : "💥"}</Text>
+
+        <Text
+          style={{
+            color: isWin ? "#22c55e" : "#ef4444",
+            fontSize: 26,
+            fontWeight: "900",
+            marginTop: 10,
+            letterSpacing: 1.5,
+          }}
+        >
+          {isWin ? "CONGRATULATIONS!" : "BETTER LUCK NEXT TIME"}
+        </Text>
+
+        <Text style={{ color: "#9ca3af", marginTop: 6, fontSize: 14 }}>
+          {isWin ? "Reward unlocked 🎉" : "Almost there, try again ⚡"}
+        </Text>
+      </Animated.View>
+    </View>
+  );
+}
 
 
 //#region declareation
@@ -60,7 +109,7 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [balance, setBalance] = useState<string>("0");
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<"win" | "fail" | null>(null);
   const [pendingReward, setPendingReward] = useState(0);
 
   const [isEmailAuthInProgress, setIsEmailAuthInProgress] = useState(false);
@@ -72,7 +121,7 @@ export default function App() {
   }, []);
   useEffect(() => {
     Animated.timing(balanceAnim, {
-      toValue: balance as unknown as Int32,
+      toValue: parseFloat(balance) || 0,
       duration: 800,
       easing: Easing.out(Easing.ease),
       useNativeDriver: false,
@@ -384,59 +433,7 @@ export default function App() {
       )}
 
       {result && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "rgba(0,0,0,0.85)",
-          }}
-        >
-          {/* 🎉 LOTTIE */}
-          <LottieView
-            source={
-              result === "win"
-                ? require("./assets/animations/Success.json")
-                : require("./assets/animations/fail.json")
-            }
-            autoPlay
-            loop={false}
-            style={{ width: 220, height: 220 }}
-            onAnimationFinish={() => setResult(null)}
-          />
-
-          {/* 🎯 TEXT */}
-          <Text
-            style={{
-              color: result === "win" ? "#22c55e" : "#ef4444",
-              fontSize: 26,
-              fontWeight: "900",
-              marginTop: 10,
-              letterSpacing: 1.5,
-            }}
-          >
-            {result === "win"
-              ? "CONGRATULATIONS!"
-              : "BETTER LUCK NEXT TIME"}
-          </Text>
-
-          {/* 💬 SUBTEXT */}
-          <Text
-            style={{
-              color: "#9ca3af",
-              marginTop: 6,
-              fontSize: 14,
-            }}
-          >
-            {result === "win"
-              ? "Reward unlocked 🎉"
-              : "Almost there, try again ⚡"}
-          </Text>
-        </View>
+        <ResultOverlay result={result} onFinish={() => setResult(null)} />
       )}
       {!walletAddress && !isEmailAuthInProgress && (
         <LoginScreen
@@ -444,12 +441,11 @@ export default function App() {
           isEmailAuthInProgress={isEmailAuthInProgress}
           setIsEmailAuthInProgress={setIsEmailAuthInProgress}
           setIsLoggingIn={setIsLoggingIn}
-          setWalletAddress={setWalletAddress}   // ← this is the key
+          setWalletAddress={setWalletAddress}
           sequenceWaas={sequenceWaas}
           randomName={randomName}
           signInWithGoogle={signInWithGoogle}
-          signInWithAppleIOS={signInWithAppleIOS}
-          signInWithAppleAndroid={signInWithAppleAndroid}
+          signInWithApple={signInWithApple}
         />
       )}
     </View>
@@ -459,7 +455,7 @@ export default function App() {
 // Helpers
 
 const isSignedIn = async (
-  setWalletAddress: React.Dispatch<React.SetStateAction<string>>
+  setWalletAddress: React.Dispatch<React.SetStateAction<string | null>>
 ) => {
   const isSignedIn = await sequenceWaas.isSignedIn();
 
@@ -547,67 +543,15 @@ const signInWithGoogle = async () => {
   };
 };
 
-const signInWithAppleIOS = async () => {
-  // performs login request
-  const appleAuthRequestResponse = await appleAuth.performRequest({
-    requestedOperation: appleAuth.Operation.LOGIN,
-    // Note: it appears putting FULL_NAME first is important, see issue #293
-    requestedScopes: [appleAuth.Scope.FULL_NAME, appleAuth.Scope.EMAIL],
+const signInWithApple = async () => {
+  const credential = await AppleAuthentication.signInAsync({
+    requestedScopes: [
+      AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+      AppleAuthentication.AppleAuthenticationScope.EMAIL,
+    ],
   });
 
-  // get current authentication state for user
-  // /!\ This method must be tested on a real device. On the iOS simulator it always throws an error.
-  const credentialState = await appleAuth.getCredentialStateForUser(
-    appleAuthRequestResponse.user
-  );
-
-  // use credentialState response to ensure the user is authenticated
-  if (credentialState === appleAuth.State.AUTHORIZED) {
-    // user is authenticated
-
-    const idToken = appleAuthRequestResponse.identityToken;
-
-    if (!idToken) {
-      throw new Error("No idToken");
-    }
-
-    const waasSession = await authenticateWithWaas(idToken);
-
-    if (!waasSession) {
-      throw new Error("No WaaS session");
-    }
-
-    return {
-      userInfo: {
-        user: appleAuthRequestResponse.user,
-        idToken,
-      },
-      walletAddress: waasSession.wallet,
-    };
-  }
-};
-
-const signInWithAppleAndroid = async () => {
-  // Configure the request
-  appleAuthAndroid.configure({
-    // The Service ID you registered with Apple
-    clientId: "com.horizon.waas-demo",
-
-    // Return URL added to your Apple dev console. We intercept this redirect, but it must still match
-    // the URL you provided to Apple. It can be an empty route on your backend as it's never called.
-    redirectUri: "https://waas-demo.sequence.app/callback",
-
-    // The type of response requested - code, id_token, or both.
-    responseType: appleAuthAndroid.ResponseType.ALL,
-
-    // The amount of user information requested from Apple.
-    scope: appleAuthAndroid.Scope.ALL,
-  });
-
-  // Open the browser window for user sign in
-  const response = await appleAuthAndroid.signIn();
-
-  const idToken = response.id_token;
+  const idToken = credential.identityToken;
 
   if (!idToken) {
     throw new Error("No idToken");
@@ -621,6 +565,7 @@ const signInWithAppleAndroid = async () => {
 
   return {
     userInfo: {
+      user: credential.user,
       idToken,
     },
     walletAddress: waasSession.wallet,
