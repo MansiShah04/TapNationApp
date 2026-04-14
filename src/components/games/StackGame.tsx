@@ -45,9 +45,10 @@ interface StackGameProps {
   onSuccess: () => void;
   onClose: () => void;
   onCancel?: () => void;
+  onStart?: () => void;
 }
 
-export default function StackGame({ onSuccess, onClose, onCancel }: StackGameProps) {
+export default function StackGame({ onSuccess, onClose, onCancel, onStart }: StackGameProps) {
   
   //#region declaration
   const baseX = (GAME_AREA_W - cfg.initialBlockWidth) / 2;
@@ -141,7 +142,8 @@ export default function StackGame({ onSuccess, onClose, onCancel }: StackGamePro
     resolvedRef.current = false;
     setFinished(null);
     setRunning(true);
-  }, [movingXAnim]); // eslint-disable-line react-hooks/exhaustive-deps
+    onStart?.();
+  }, [movingXAnim, onStart]); // eslint-disable-line react-hooks/exhaustive-deps
 
   //#region  drop button code
   const handleDrop = useCallback(() => {

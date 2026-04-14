@@ -2,7 +2,7 @@
  * GameScreen — renders the correct game component via the game registry.
  * Handles game session start/complete and result overlay.
  */
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -26,19 +26,22 @@ export default function GameScreen() {
   const { addReward, recordGameWon } = useWallet();
   const { removeAndReplace } = useOffers();
 
-  const sessionRef = useRef<GameSession | null>(null);
+  // Holds the in-flight startSession() promise for the current attempt. Using
+  // a promise (not the resolved session) lets handleWin await it if the user
+  // finishes before the network call returns.
+  const sessionPromiseRef = useRef<Promise<GameSession | null> | null>(null);
   const resolvedRef = useRef(false);
   const [result, setResult] = useState<"win" | "fail" | null>(null);
 
-  // Start session on mount
-  useEffect(() => {
+  const handleStart = useCallback(() => {
     if (!isRegisteredGame(gameType)) return;
-    (async () => {
+    resolvedRef.current = false;
+    sessionPromiseRef.current = (async () => {
       try {
-        const session = await startSession(gameType, offerId, walletAddress ?? "", reward);
-        sessionRef.current = session;
+        return await startSession(gameType, offerId, walletAddress ?? "", reward);
       } catch (e) {
         console.error("Failed to start game session:", e);
+        return null;
       }
     })();
   }, [gameType, offerId, walletAddress, reward]);
@@ -47,8 +50,8 @@ export default function GameScreen() {
     if (resolvedRef.current) return;
     resolvedRef.current = true;
 
-    const session = sessionRef.current;
-    sessionRef.current = null;
+    const sessionPromise = sessionPromiseRef.current;
+    sessionPromiseRef.current = null;
 
     // Update UI state immediately so the game unmounts and offers list updates
     recordGameWon();
@@ -56,6 +59,7 @@ export default function GameScreen() {
     setResult("win");
 
     // Server verification runs in the background — reward is added on response
+    const session = sessionPromise ? await sessionPromise : null;
     if (session) {
       try {
         const res = await completeSession(session, true, {
@@ -76,11 +80,12 @@ export default function GameScreen() {
     if (resolvedRef.current) return;
     resolvedRef.current = true;
 
-    const session = sessionRef.current;
-    sessionRef.current = null;
+    const sessionPromise = sessionPromiseRef.current;
+    sessionPromiseRef.current = null;
 
     setResult("fail");
 
+    const session = sessionPromise ? await sessionPromise : null;
     if (session) {
       try {
         await completeSession(session, false, {
@@ -119,7 +124,12 @@ export default function GameScreen() {
     <View style={s.root}>
       {!result && (
         <ErrorBoundary onReset={handleErrorReset}>
-          <GameComponent onSuccess={handleWin} onClose={handleLose} onCancel={handleCancel} />
+          <GameComponent
+            onSuccess={handleWin}
+            onClose={handleLose}
+            onCancel={handleCancel}
+            onStart={handleStart}
+          />
         </ErrorBoundary>
       )}
 

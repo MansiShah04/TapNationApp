@@ -32,9 +32,10 @@ interface TapSpeedGameProps {
   onSuccess: () => void;
   onClose: () => void;
   onCancel?: () => void;
+  onStart?: () => void;
 }
 
-export default function TapSpeedGame({ onSuccess, onClose, onCancel }: TapSpeedGameProps) {
+export default function TapSpeedGame({ onSuccess, onClose, onCancel, onStart }: TapSpeedGameProps) {
   const [timeLeft, setTimeLeft] = useState(GAME_TIME);
   const [taps, setTaps] = useState(0);
   const [running, setRunning] = useState(false);
@@ -101,7 +102,8 @@ export default function TapSpeedGame({ onSuccess, onClose, onCancel }: TapSpeedG
     setRunning(true);
     setFinished(false);
     progressAnim.setValue(0);
-  }, [progressAnim]);
+    onStart?.();
+  }, [progressAnim, onStart]);
 
   const handleTap = useCallback(() => {
     if (!running) return;

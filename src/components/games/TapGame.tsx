@@ -28,9 +28,10 @@ interface TapGameProps {
   onSuccess: () => void;
   onClose: () => void;
   onCancel?: () => void;
+  onStart?: () => void;
 }
 
-export default function TapGame({ onSuccess, onClose, onCancel }: TapGameProps) {
+export default function TapGame({ onSuccess, onClose, onCancel, onStart }: TapGameProps) {
   const position = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
   const directionRef = useRef(1);
@@ -54,9 +55,12 @@ export default function TapGame({ onSuccess, onClose, onCancel }: TapGameProps) 
     shadowRadius: 4 + glowProgress.value * 10,
   }));
 
-  // Oscillating indicator (still uses RN Animated for stopAnimation callback)
+  // Oscillating indicator (still uses RN Animated for stopAnimation callback).
+  // Gameplay begins immediately on mount, so notify the parent now — the
+  // session's startedAt must reflect the actual play window.
   useEffect(() => {
     unmountedRef.current = false;
+    onStart?.();
 
     let positionAnim: Animated.CompositeAnimation | null = null;
     const loop = () => {
@@ -79,7 +83,7 @@ export default function TapGame({ onSuccess, onClose, onCancel }: TapGameProps) 
       unmountedRef.current = true;
       positionAnim?.stop();
     };
-  }, [position]);
+  }, [position, onStart]);
 
   const handleTap = () => {
     mediumTap();

@@ -17,6 +17,12 @@ export interface GameComponentProps {
   onSuccess: () => void;
   onClose: () => void;
   onCancel?: () => void;
+  /**
+   * Fired when actual gameplay begins (not on mount). Each call begins a fresh
+   * session — games that allow retry must invoke it on every attempt so
+   * server-side duration checks see the real play window.
+   */
+  onStart?: () => void;
 }
 
 interface GameEntry {
