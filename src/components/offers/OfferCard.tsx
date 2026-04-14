@@ -1,10 +1,20 @@
 /**
  * Individual offer card with reward display, progress bar, tags, and a Play CTA.
  * Entry animation is staggered by the `index` prop for the streaming-in effect.
+ *
+ * Uses reanimated for the CTA glow pulse (shadow on UI thread).
  */
 import React, { useCallback, useEffect, useRef } from "react";
 import { View, Text, Pressable, Animated, StyleSheet } from "react-native";
+import ReAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { colors } from "../../theme/colors";
+import { mediumTap } from "../../utils/haptics";
 import type { Offer } from "../../types/offer";
 
 interface OfferCardProps {
@@ -57,13 +67,30 @@ export default function OfferCard({ offer, index, onPlay }: OfferCardProps) {
   const translateY = useRef(new Animated.Value(32)).current;
   const cardScale = useRef(new Animated.Value(1)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
-  const glow = useRef(new Animated.Value(0)).current;
   const ripple = useRef(new Animated.Value(0)).current;
 
   const rarityColor = getRarityColor(offer.reward);
   const cta = getCtaStyle(offer.reward);
   const borderColor = getBorderColor(offer.variant);
   const rewardUnit = offer.rewardUnit ?? "AVAX";
+
+  // Reanimated: CTA glow on UI thread
+  const glowProgress = useSharedValue(0);
+
+  useEffect(() => {
+    glowProgress.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1400 }),
+        withTiming(0, { duration: 1400 }),
+      ),
+      -1,
+    );
+  }, [glowProgress]);
+
+  const glowStyle = useAnimatedStyle(() => ({
+    shadowOpacity: 0.25 + glowProgress.value * 0.55,
+    shadowRadius: 4 + glowProgress.value * 12,
+  }));
 
   // Staggered entry animation
   useEffect(() => {
@@ -83,16 +110,6 @@ export default function OfferCard({ offer, index, onPlay }: OfferCardProps) {
     ]).start();
   }, [fadeAnim, translateY, index]);
 
-  // CTA glow pulse
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glow, { toValue: 1, duration: 1400, useNativeDriver: false }),
-        Animated.timing(glow, { toValue: 0, duration: 1400, useNativeDriver: false }),
-      ]),
-    ).start();
-  }, [glow]);
-
   const handlePressIn = useCallback(() => {
     Animated.spring(btnScale, {
       toValue: 0.93,
@@ -103,6 +120,8 @@ export default function OfferCard({ offer, index, onPlay }: OfferCardProps) {
   }, [btnScale]);
 
   const handlePressOut = useCallback(() => {
+    mediumTap();
+
     // Ripple
     Animated.timing(ripple, {
       toValue: 1,
@@ -135,7 +154,7 @@ export default function OfferCard({ offer, index, onPlay }: OfferCardProps) {
       ]}
     >
       <View style={[s.card, { borderColor }]}>
-        {/* Top: icon + info */}
+        {/* Top: icon + info + Play CTA */}
         <View style={s.topRow}>
           <View style={s.iconWrap}>
             <Text style={s.iconEmoji}>{offer.icon}</Text>
@@ -156,11 +175,42 @@ export default function OfferCard({ offer, index, onPlay }: OfferCardProps) {
               </View>
             )}
           </View>
+
+          {/* CTA — outer: reanimated glow, inner: RN Animated scale */}
+          <ReAnimated.View
+            style={[
+              s.ctaWrap,
+              { shadowColor: rarityColor },
+              glowStyle,
+            ]}
+          >
+            <Pressable
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
+              style={s.ctaPressable}
+            >
+              <Animated.View
+                style={[
+                  s.ripple,
+                  {
+                    backgroundColor: rarityColor,
+                    opacity: ripple.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] }),
+                    transform: [{ scale: ripple.interpolate({ inputRange: [0, 1], outputRange: [0.3, 2.5] }) }],
+                  },
+                ]}
+              />
+              <Animated.View
+                style={[s.ctaInner, { backgroundColor: cta.bg, transform: [{ scale: btnScale }] }]}
+              >
+                <Text style={[s.ctaText, { color: cta.text }]}>Play</Text>
+              </Animated.View>
+            </Pressable>
+          </ReAnimated.View>
         </View>
 
         <View style={s.divider} />
 
-        {/* Bottom: reward + progress + CTA */}
+        {/* Bottom: reward + progress */}
         <View style={s.bottomRow}>
           <View style={s.rewardBlock}>
             <Text style={[s.rewardAmount, { color: rarityColor }]}>
@@ -188,40 +238,6 @@ export default function OfferCard({ offer, index, onPlay }: OfferCardProps) {
               />
             </View>
           </View>
-
-          {/* CTA — outer: JS glow, inner: native scale */}
-          <Animated.View
-            style={[
-              s.ctaWrap,
-              {
-                shadowColor: rarityColor,
-                shadowOpacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.8] }),
-                shadowRadius: glow.interpolate({ inputRange: [0, 1], outputRange: [4, 16] }),
-              },
-            ]}
-          >
-            <Pressable
-              onPressIn={handlePressIn}
-              onPressOut={handlePressOut}
-              style={s.ctaPressable}
-            >
-              <Animated.View
-                style={[
-                  s.ripple,
-                  {
-                    backgroundColor: rarityColor,
-                    opacity: ripple.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] }),
-                    transform: [{ scale: ripple.interpolate({ inputRange: [0, 1], outputRange: [0.3, 2.5] }) }],
-                  },
-                ]}
-              />
-              <Animated.View
-                style={[s.ctaInner, { backgroundColor: cta.bg, transform: [{ scale: btnScale }] }]}
-              >
-                <Text style={[s.ctaText, { color: cta.text }]}>Play</Text>
-              </Animated.View>
-            </Pressable>
-          </Animated.View>
         </View>
       </View>
     </Animated.View>

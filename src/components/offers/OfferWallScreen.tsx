@@ -1,32 +1,42 @@
 /**
  * Main offer wall screen showing wallet balance, stats, and streaming offer cards.
  */
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, Animated, ScrollView, StyleSheet } from "react-native";
 import { colors } from "../../theme/colors";
+import { formatWei } from "../../hooks/useWallet";
+import { mediumTap, successNotification } from "../../utils/haptics";
 import type { Offer } from "../../types/offer";
 
 interface OfferWallScreenProps {
   walletAddress: string;
-  balance: number;
+  balanceWei: bigint;
   offers: Offer[];
-  isStreaming: boolean;
   isGenerating: boolean;
   claimedToday: number;
-  activeOffersCount: number;
-  onRefreshBalance: () => void;
+  gamesPlayed: number;
+  gamesWon: number;
   onSignOut: () => void;
+  onClaim: () => void;
   renderOfferCard: (offer: Offer, index: number) => React.ReactNode;
 }
 
+const AVAX_USD_RATE = 20.48;
+const CLAIM_THRESHOLD_USD = 5;
+// Progress bar dimensions are used to position the coin indicator
+const PROGRESS_TRACK_HEIGHT = 14;
+const COIN_SIZE = 26;
+
 export default function OfferWallScreen({
   walletAddress,
-  balance,
+  balanceWei,
   offers,
   isGenerating,
   claimedToday,
-  activeOffersCount,
+  gamesPlayed,
+  gamesWon,
   onSignOut,
+  onClaim,
   renderOfferCard,
 }: OfferWallScreenProps) {
   const balanceScale = useRef(new Animated.Value(1)).current;
@@ -36,13 +46,21 @@ export default function OfferWallScreen({
   const headerFade = useRef(new Animated.Value(0)).current;
   const headerSlide = useRef(new Animated.Value(-12)).current;
   const balanceFade = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const claimBtnScale = useRef(new Animated.Value(1)).current;
+
+  // Credited animation
+  const creditOpacity = useRef(new Animated.Value(0)).current;
+  const creditY = useRef(new Animated.Value(20)).current;
+  const [creditAmount, setCreditAmount] = useState("");
+  const [progressTrackWidth, setProgressTrackWidth] = useState(0);
 
   // Entry animation
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(headerFade, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.timing(headerSlide, { toValue: 0, duration: 400, useNativeDriver: true }),
-      Animated.timing(balanceFade, { toValue: 1, duration: 600, delay: 150, useNativeDriver: true }),
+      Animated.timing(headerFade, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.timing(headerSlide, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.timing(balanceFade, { toValue: 1, duration: 250, useNativeDriver: true }),
     ]).start();
   }, [headerFade, headerSlide, balanceFade]);
 
@@ -52,7 +70,7 @@ export default function OfferWallScreen({
       Animated.spring(balanceScale, { toValue: 1.12, useNativeDriver: true, speed: 30 }),
       Animated.spring(balanceScale, { toValue: 1, useNativeDriver: true, speed: 20 }),
     ]).start();
-  }, [balance, balanceScale]);
+  }, [balanceWei, balanceScale]);
 
   // Generating dots pulse
   useEffect(() => {
@@ -72,7 +90,43 @@ export default function OfferWallScreen({
   const handleSignOut = useCallback(() => onSignOut(), [onSignOut]);
 
   const shortAddr = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
-  const balanceUsd = (balance * 20.48).toFixed(2);
+  const balanceDisplay = formatWei(balanceWei);
+  const balanceUsdNum = parseFloat(balanceDisplay) * AVAX_USD_RATE;
+  const balanceUsd = balanceUsdNum.toFixed(2);
+  const canClaim = balanceUsdNum >= CLAIM_THRESHOLD_USD;
+  const progressPct = Math.min(100, (balanceUsdNum / CLAIM_THRESHOLD_USD) * 100);
+
+  // Animate the progress bar to the current percentage
+  useEffect(() => {
+    Animated.spring(progressAnim, {
+      toValue: progressPct,
+      useNativeDriver: false,
+      speed: 12,
+      bounciness: 6,
+    }).start();
+  }, [progressPct, progressAnim]);
+
+  const handleClaim = useCallback(() => {
+    if (!canClaim) return;
+    mediumTap();
+    successNotification();
+    const amount = balanceDisplay;
+    setCreditAmount(amount);
+
+    
+    creditOpacity.setValue(0);
+    creditY.setValue(20);
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(creditOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+        Animated.delay(800),
+        Animated.timing(creditOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]),
+      Animated.timing(creditY, { toValue: -40, duration: 1450, useNativeDriver: true }),
+    ]).start();
+
+    onClaim();
+  }, [canClaim, balanceDisplay, creditOpacity, creditY, onClaim]);
 
   return (
     <View style={s.root}>
@@ -91,22 +145,102 @@ export default function OfferWallScreen({
       </Animated.View>
 
       {/* Scrollable body */}
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={s.scroll}
+        contentContainerStyle={s.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Balance card */}
         <Animated.View style={[s.balanceCard, { opacity: balanceFade }]}>
           <View style={s.balanceLeft}>
-            <Text style={s.balanceLabel}>AVAX Balance</Text>
+            <Text style={s.balanceLabel}>Balance</Text>
             <Animated.Text style={[s.balanceAmount, { transform: [{ scale: balanceScale }] }]}>
-              {balance}
+              {balanceDisplay}
             </Animated.Text>
             <Text style={s.balanceSub}>≈ ${balanceUsd} USD</Text>
+
+            {/* Fly-up "credited" toast */}
+            <Animated.View
+              style={[
+                s.creditToast,
+                { opacity: creditOpacity, transform: [{ translateY: creditY }] },
+              ]}
+              pointerEvents="none"
+            >
+              <Text style={s.creditToastText}>
+                +{creditAmount} amount credited to wallet 🎉
+              </Text>
+            </Animated.View>
           </View>
           <View style={s.balanceRight}>
-            <View style={s.todayBadge}>
-              <Text style={s.todayBadgeText}>+0.25 today</Text>
-            </View>
+            <Animated.View style={{ transform: [{ scale: claimBtnScale }] }}>
+              <Pressable
+                onPress={handleClaim}
+                disabled={!canClaim}
+                onPressIn={() => {
+                  if (!canClaim) return;
+                  Animated.spring(claimBtnScale, { toValue: 0.94, useNativeDriver: true, speed: 30 }).start();
+                }}
+                onPressOut={() => {
+                  if (!canClaim) return;
+                  Animated.spring(claimBtnScale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 8 }).start();
+                }}
+                style={[s.claimBtn, !canClaim && s.claimBtnDisabled]}
+              >
+                <Text style={[s.claimBtnText, !canClaim && s.claimBtnTextDisabled]}>
+                  CLAIM
+                </Text>
+              </Pressable>
+            </Animated.View>
+            <Text style={s.claimHint}>
+              {canClaim ? "Ready to claim" : `$${(CLAIM_THRESHOLD_USD - balanceUsdNum).toFixed(2)} to unlock`}
+            </Text>
           </View>
         </Animated.View>
+
+        {/* Claim progress bar: $0 → $5 USD */}
+        <View style={s.claimProgressWrap}>
+          <View style={s.claimProgressMeta}>
+            <Text style={s.claimProgressLabel}>Claim progress</Text>
+            <Text style={s.claimProgressValue}>
+              ${balanceUsd} / ${CLAIM_THRESHOLD_USD.toFixed(2)}
+            </Text>
+          </View>
+          <View
+            style={s.claimProgressTrack}
+            onLayout={(e) => setProgressTrackWidth(e.nativeEvent.layout.width)}
+          >
+            <Animated.View
+              style={[
+                s.claimProgressFill,
+                {
+                  width: progressAnim.interpolate({
+                    inputRange: [0, 100],
+                    outputRange: ["0%", "100%"],
+                  }),
+                },
+              ]}
+            />
+            {/* Coin indicator sliding along the track */}
+            {progressTrackWidth > 0 && (
+              <Animated.View
+                style={[
+                  s.coinIndicator,
+                  {
+                    left: progressAnim.interpolate({
+                      inputRange: [0, 100],
+                      // Keep the coin fully inside the track: 0% → left edge, 100% → right edge
+                      outputRange: [0, Math.max(0, progressTrackWidth - COIN_SIZE)],
+                      extrapolate: "clamp",
+                    }),
+                  },
+                ]}
+              >
+                <Text style={s.coinEmoji}>🪙</Text>
+              </Animated.View>
+            )}
+          </View>
+        </View>
 
         {/* Stat chips */}
         <View style={s.chipsRow}>
@@ -115,12 +249,12 @@ export default function OfferWallScreen({
             <Text style={s.chipKey}>Claimed</Text>
           </View>
           <View style={s.chip}>
-            <Text style={[s.chipVal, { color: colors.gold }]}>{activeOffersCount}</Text>
-            <Text style={s.chipKey}>Active</Text>
+            <Text style={[s.chipVal, { color: colors.gold }]}>{gamesPlayed}</Text>
+            <Text style={s.chipKey}>Played</Text>
           </View>
           <View style={s.chip}>
-            <Text style={[s.chipVal, { color: colors.pink }]}>Lvl 7</Text>
-            <Text style={s.chipKey}>Rank</Text>
+            <Text style={[s.chipVal, { color: colors.pink }]}>{gamesWon}</Text>
+            <Text style={s.chipKey}>Won</Text>
           </View>
         </View>
 
@@ -136,7 +270,7 @@ export default function OfferWallScreen({
         {/* Offer cards */}
         {offers.map((offer, index) => renderOfferCard(offer, index))}
 
-        {/* Generating placeholder */}
+        {/* Generating / loading more */}
         {isGenerating && (
           <View style={s.generatingCard}>
             <View style={s.genDotsRow}>
@@ -233,6 +367,116 @@ const s = StyleSheet.create({
     paddingVertical: 4,
   },
   todayBadgeText: { fontSize: 11, fontWeight: "900", color: colors.green },
+
+  claimBtn: {
+    backgroundColor: colors.green,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 10,
+    shadowColor: colors.green,
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  claimBtnDisabled: {
+    backgroundColor: "rgba(155,122,255,0.12)",
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  claimBtnText: {
+    color: "#003320",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  claimBtnTextDisabled: {
+    color: colors.muted,
+  },
+  claimHint: {
+    fontSize: 9,
+    color: colors.muted,
+    marginTop: 4,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    textAlign: "right",
+  },
+  creditToast: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+  },
+  creditToastText: {
+    color: colors.green,
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+
+  claimProgressWrap: {
+    backgroundColor: colors.bgCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 14,
+  },
+  claimProgressMeta: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  claimProgressLabel: {
+    fontSize: 10,
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    fontWeight: "700",
+  },
+  claimProgressValue: {
+    fontSize: 11,
+    color: colors.gold,
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
+  },
+  claimProgressTrack: {
+    height: PROGRESS_TRACK_HEIGHT,
+    backgroundColor: colors.bgDeep,
+    borderRadius: PROGRESS_TRACK_HEIGHT / 2,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    overflow: "visible",
+    justifyContent: "center",
+  },
+  claimProgressFill: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: colors.gold,
+    borderRadius: PROGRESS_TRACK_HEIGHT / 2,
+  },
+  coinIndicator: {
+    position: "absolute",
+    top: (PROGRESS_TRACK_HEIGHT - COIN_SIZE) / 2,
+    width: COIN_SIZE,
+    height: COIN_SIZE,
+    borderRadius: COIN_SIZE / 2,
+    backgroundColor: colors.bgCard,
+    borderWidth: 2,
+    borderColor: colors.gold,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.gold,
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  coinEmoji: { fontSize: 14 },
 
   chipsRow: { flexDirection: "row", gap: 8, marginBottom: 18 },
   chip: {

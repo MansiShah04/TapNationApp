@@ -11,6 +11,7 @@ interface GameOverlayProps {
   title: string;
   subtitle: string;
   onClose: () => void;
+  onCancel?: () => void;
   children: React.ReactNode;
 }
 
@@ -19,6 +20,7 @@ export default function GameOverlay({
   title,
   subtitle,
   onClose,
+  onCancel,
   children,
 }: GameOverlayProps) {
   const fadeIn = useRef(new Animated.Value(0)).current;
@@ -57,7 +59,7 @@ export default function GameOverlay({
 
         {children}
 
-        <Pressable onPress={onClose} style={s.closeBtn}>
+        <Pressable onPress={onCancel ?? onClose} style={s.closeBtn}>
           <Text style={s.closeBtnText}>Cancel</Text>
         </Pressable>
       </Animated.View>

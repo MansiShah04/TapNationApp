@@ -1,6 +1,9 @@
 /**
  * Sequence Wallet-as-a-Service initialization.
  * Uses expo-secure-store for sensitive keys and AsyncStorage for general persistence.
+ *
+ * All secrets are read from environment variables (EXPO_PUBLIC_*).
+ * See .env.example for required variables.
  */
 import "./polyfills";
 import { SequenceWaaS, SecureStoreBackend } from "@0xsequence/waas";
@@ -46,16 +49,23 @@ class ExpoSecureStoreBackend implements SecureStoreBackend {
   }
 }
 
-const PROJECT_ACCESS_KEY = "AQAAAAAAAI9WEA9-IwH6yjyN0Ts0jEK-8Qk";
-const WAAS_CONFIG_KEY =
-  "eyJwcm9qZWN0SWQiOjM2Njk0LCJycGNTZXJ2ZXIiOiJodHRwczovL3dhYXMuc2VxdWVuY2UuYXBwIn0=";
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `Missing environment variable: ${name}. ` +
+      `Copy .env.example to .env and fill in the values.`,
+    );
+  }
+  return value;
+}
 
-export const WEB_GOOGLE_CLIENT_ID =
-  "970987756660-35a6tc48hvi8cev9cnknp0iugv9poa23.apps.googleusercontent.com";
-export const IOS_GOOGLE_CLIENT_ID =
-  "970987756660-eu0kjc9mda0iuiuktoq0lbme9mmn1j8m.apps.googleusercontent.com";
-export const IOS_GOOGLE_REDIRECT_URI =
-  "com.googleusercontent.apps.970987756660-eu0kjc9mda0iuiuktoq0lbme9mmn1j8m";
+const PROJECT_ACCESS_KEY = requireEnv("EXPO_PUBLIC_PROJECT_ACCESS_KEY");
+const WAAS_CONFIG_KEY = requireEnv("EXPO_PUBLIC_WAAS_CONFIG_KEY");
+
+export const WEB_GOOGLE_CLIENT_ID = requireEnv("EXPO_PUBLIC_WEB_GOOGLE_CLIENT_ID");
+export const IOS_GOOGLE_CLIENT_ID = requireEnv("EXPO_PUBLIC_IOS_GOOGLE_CLIENT_ID");
+export const IOS_GOOGLE_REDIRECT_URI = requireEnv("EXPO_PUBLIC_IOS_GOOGLE_REDIRECT_URI");
 
 const localStorage = {
   get: async (key: string) => (await AsyncStorage.getItem(key)) ?? null,

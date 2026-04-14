@@ -2,53 +2,94 @@
  * Tap-to-Stop mini-game.
  * A moving indicator oscillates across a bar — player must tap STOP
  * when the indicator is inside the green target zone (40%–60%).
+ *
+ * Uses reanimated for the glow pulse (JS-thread shadow animation)
+ * and RN Animated for the oscillating position + button press.
  */
 import React, { useEffect, useRef } from "react";
-import { View, Text, Pressable, Animated, StyleSheet, Dimensions } from "react-native";
+import { View, Text, Pressable, Animated, StyleSheet } from "react-native";
+import ReAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { colors } from "../../theme/colors";
+import { mediumTap, successNotification, errorNotification } from "../../utils/haptics";
+import { playTap } from "../../utils/sounds";
+import { isInTargetZone } from "../../utils/gameLogic";
+import { getGameConfig } from "../../config/gameConfig";
 import GameOverlay from "../ui/GameOverlay";
 
-const BAR_WIDTH = Dimensions.get("window").width * 0.75;
+const config = getGameConfig("Tap-to-Stop");
 
 interface TapGameProps {
   onSuccess: () => void;
   onClose: () => void;
+  onCancel?: () => void;
 }
 
-export default function TapGame({ onSuccess, onClose }: TapGameProps) {
+export default function TapGame({ onSuccess, onClose, onCancel }: TapGameProps) {
   const position = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
-  const glowOpacity = useRef(new Animated.Value(0)).current;
   const directionRef = useRef(1);
+  const unmountedRef = useRef(false);
+
+  // Reanimated: glow pulse on UI thread (no JS-thread cost)
+  const glowProgress = useSharedValue(0);
 
   useEffect(() => {
-    // Glow pulse on target zone
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowOpacity, { toValue: 1, duration: 900, useNativeDriver: false }),
-        Animated.timing(glowOpacity, { toValue: 0, duration: 900, useNativeDriver: false }),
-      ]),
-    ).start();
+    glowProgress.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 900 }),
+        withTiming(0, { duration: 900 }),
+      ),
+      -1,
+    );
+  }, [glowProgress]);
 
-    // Oscillating indicator
+  const glowStyle = useAnimatedStyle(() => ({
+    shadowOpacity: 0.2 + glowProgress.value * 0.4,
+    shadowRadius: 4 + glowProgress.value * 10,
+  }));
+
+  // Oscillating indicator (still uses RN Animated for stopAnimation callback)
+  useEffect(() => {
+    unmountedRef.current = false;
+
+    let positionAnim: Animated.CompositeAnimation | null = null;
     const loop = () => {
-      Animated.timing(position, {
+      if (unmountedRef.current) return;
+      positionAnim = Animated.timing(position, {
         toValue: directionRef.current === 1 ? 1 : 0,
-        duration: 2000,
+        duration: config.oscillationDurationMs,
         useNativeDriver: false,
-      }).start(() => {
-        directionRef.current *= -1;
-        loop();
+      });
+      positionAnim.start(({ finished }) => {
+        if (finished && !unmountedRef.current) {
+          directionRef.current *= -1;
+          loop();
+        }
       });
     };
     loop();
-  }, [position, glowOpacity]);
+
+    return () => {
+      unmountedRef.current = true;
+      positionAnim?.stop();
+    };
+  }, [position]);
 
   const handleTap = () => {
+    mediumTap();
+    playTap();
     position.stopAnimation((value) => {
-      if (value > 0.4 && value < 0.6) {
+      if (isInTargetZone(value, config.zoneMin, config.zoneMax)) {
+        successNotification();
         onSuccess();
       } else {
+        errorNotification();
         onClose();
       }
     });
@@ -60,23 +101,15 @@ export default function TapGame({ onSuccess, onClose }: TapGameProps) {
       title="Tap-to-Stop"
       subtitle="Stop the indicator in the green zone to win!"
       onClose={onClose}
+      onCancel={onCancel}
     >
       {/* Bar */}
       <View style={s.barContainer}>
-        <Animated.View
+        <ReAnimated.View
           style={[
             s.barTrack,
-            {
-              shadowColor: colors.green,
-              shadowOpacity: glowOpacity.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.2, 0.6],
-              }),
-              shadowRadius: glowOpacity.interpolate({
-                inputRange: [0, 1],
-                outputRange: [4, 14],
-              }),
-            },
+            { shadowColor: colors.green },
+            glowStyle,
           ]}
         >
           <View style={s.targetZone} />
@@ -91,7 +124,7 @@ export default function TapGame({ onSuccess, onClose }: TapGameProps) {
               },
             ]}
           />
-        </Animated.View>
+        </ReAnimated.View>
 
         <View style={s.barLabels}>
           <Text style={s.barLabel}>0%</Text>
@@ -132,8 +165,8 @@ const s = StyleSheet.create({
   },
   targetZone: {
     position: "absolute",
-    left: "40%",
-    width: "20%",
+    left: `${config.zoneMin * 100}%`,
+    width: `${(config.zoneMax - config.zoneMin) * 100}%`,
     height: "100%",
     backgroundColor: "rgba(57,255,159,0.2)",
     borderLeftWidth: 2,

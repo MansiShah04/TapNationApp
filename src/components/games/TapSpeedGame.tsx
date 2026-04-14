@@ -1,24 +1,40 @@
 /**
  * Tap-to-Speed mini-game.
  * Player must tap a circular target at 6+ taps/sec over 5 seconds.
+ *
+ * Uses reanimated for the glow pulse (shadow on UI thread),
+ * RN Animated for tap scale + progress bar.
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, Animated, StyleSheet } from "react-native";
+import ReAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { colors } from "../../theme/colors";
+import { lightTap, successNotification, errorNotification } from "../../utils/haptics";
+import { playTap } from "../../utils/sounds";
+import { calculateTps, isTpsTargetMet } from "../../utils/gameLogic";
+import { getGameConfig } from "../../config/gameConfig";
 import GameOverlay from "../ui/GameOverlay";
 import StatChips from "../ui/StatChips";
 import ProgressBar from "../ui/ProgressBar";
 import type { StatItem } from "../ui/StatChips";
 
-const GAME_TIME = 5;
-const TARGET_TPS = 6;
+const config = getGameConfig("Tap-to-Speed");
+const GAME_TIME = config.gameDurationSec;
+const TARGET_TPS = config.targetTps;
 
 interface TapSpeedGameProps {
   onSuccess: () => void;
   onClose: () => void;
+  onCancel?: () => void;
 }
 
-export default function TapSpeedGame({ onSuccess, onClose }: TapSpeedGameProps) {
+export default function TapSpeedGame({ onSuccess, onClose, onCancel }: TapSpeedGameProps) {
   const [timeLeft, setTimeLeft] = useState(GAME_TIME);
   const [taps, setTaps] = useState(0);
   const [running, setRunning] = useState(false);
@@ -27,17 +43,24 @@ export default function TapSpeedGame({ onSuccess, onClose }: TapSpeedGameProps) 
   const tapScale = useRef(new Animated.Value(1)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
-  // Separate values: glowOpacity is JS-driven (shadow), tapScale is native-driven (transform)
-  const glowOpacity = useRef(new Animated.Value(0)).current;
+
+  // Reanimated: glow pulse on UI thread
+  const glowProgress = useSharedValue(0);
 
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowOpacity, { toValue: 1, duration: 1000, useNativeDriver: false }),
-        Animated.timing(glowOpacity, { toValue: 0, duration: 1000, useNativeDriver: false }),
-      ]),
-    ).start();
-  }, [glowOpacity]);
+    glowProgress.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1000 }),
+        withTiming(0, { duration: 1000 }),
+      ),
+      -1,
+    );
+  }, [glowProgress]);
+
+  const glowStyle = useAnimatedStyle(() => ({
+    shadowOpacity: 0.3 + glowProgress.value * 0.5,
+    shadowRadius: 6 + glowProgress.value * 14,
+  }));
 
   // Game timer
   useEffect(() => {
@@ -52,11 +75,15 @@ export default function TapSpeedGame({ onSuccess, onClose }: TapSpeedGameProps) 
     if (timeLeft !== 0 || !running) return;
 
     setRunning(false);
-    setFinished(true);
-    const tps = taps / GAME_TIME;
-    const timer = setTimeout(() => (tps >= TARGET_TPS ? onSuccess() : onClose()), 600);
-    return () => clearTimeout(timer);
-  }, [timeLeft, running, taps, onSuccess, onClose]);
+    const won = isTpsTargetMet(taps, GAME_TIME, TARGET_TPS);
+    if (won) {
+      successNotification();
+      onSuccess();
+    } else {
+      setFinished(true);
+      errorNotification();
+    }
+  }, [timeLeft, running, taps, onSuccess]);
 
   // Animate progress bar
   useEffect(() => {
@@ -78,6 +105,8 @@ export default function TapSpeedGame({ onSuccess, onClose }: TapSpeedGameProps) 
 
   const handleTap = useCallback(() => {
     if (!running) return;
+    lightTap();
+    playTap();
     setTaps((t) => t + 1);
     Animated.sequence([
       Animated.spring(tapScale, { toValue: 0.88, useNativeDriver: true, speed: 50 }),
@@ -85,13 +114,14 @@ export default function TapSpeedGame({ onSuccess, onClose }: TapSpeedGameProps) 
     ]).start();
   }, [running, tapScale]);
 
-  const tps = running ? taps / Math.max(GAME_TIME - timeLeft, 1) : taps / GAME_TIME;
+  const elapsed = GAME_TIME - timeLeft;
+  const tps = calculateTps(taps, elapsed);
   const tpsColor = tps >= TARGET_TPS ? colors.green : tps >= TARGET_TPS * 0.7 ? colors.gold : colors.danger;
 
   const stats: StatItem[] = [
     { value: `${timeLeft}s`, label: "TIME", color: colors.cyan },
     { value: taps, label: "TAPS", color: colors.gold },
-    { value: running || finished ? tps.toFixed(1) : "—", label: "TPS", color: tpsColor },
+    { value: (running || finished) && elapsed >= 1 ? tps.toFixed(1) : "—", label: "TPS", color: tpsColor },
   ];
 
   return (
@@ -100,6 +130,7 @@ export default function TapSpeedGame({ onSuccess, onClose }: TapSpeedGameProps) 
       title="Tap Speed"
       subtitle={`Tap ${TARGET_TPS}+ times/sec to win! You have ${GAME_TIME}s.`}
       onClose={onClose}
+      onCancel={onCancel}
     >
       <StatChips items={stats} />
 
@@ -111,15 +142,12 @@ export default function TapSpeedGame({ onSuccess, onClose }: TapSpeedGameProps) 
       />
 
       {running ? (
-        // Outer: JS-driven glow shadow — Inner: native-driven tap scale
-        <Animated.View
+        // Outer: reanimated glow — Inner: RN Animated tap scale
+        <ReAnimated.View
           style={[
             s.tapAreaOuter,
-            {
-              shadowColor: colors.purple,
-              shadowOpacity: glowOpacity.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.8] }),
-              shadowRadius: glowOpacity.interpolate({ inputRange: [0, 1], outputRange: [6, 20] }),
-            },
+            { shadowColor: colors.purple },
+            glowStyle,
           ]}
         >
           <Animated.View style={{ transform: [{ scale: tapScale }] }}>
@@ -128,8 +156,32 @@ export default function TapSpeedGame({ onSuccess, onClose }: TapSpeedGameProps) 
               <Text style={s.tapText}>TAP!</Text>
             </Pressable>
           </Animated.View>
-        </Animated.View>
-      ) : (
+        </ReAnimated.View>
+      ) : finished && tps < TARGET_TPS ? (
+        // Failed — show result + play again
+        <>
+          <View style={s.resultRow}>
+            <Text style={[s.resultText, { color: colors.danger }]}>
+              {`Need ${TARGET_TPS} TPS — you got ${tps.toFixed(1)}`}
+            </Text>
+          </View>
+          <Animated.View style={{ transform: [{ scale: btnScale }], width: "100%" }}>
+            <Pressable
+              onPress={startGame}
+              onPressIn={() =>
+                Animated.spring(btnScale, { toValue: 0.94, useNativeDriver: true, speed: 30 }).start()
+              }
+              onPressOut={() =>
+                Animated.spring(btnScale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 8 }).start()
+              }
+              style={s.startBtn}
+            >
+              <Text style={s.startBtnText}>PLAY AGAIN</Text>
+            </Pressable>
+          </Animated.View>
+        </>
+      ) : !finished ? (
+        // Not started yet
         <Animated.View style={{ transform: [{ scale: btnScale }], width: "100%" }}>
           <Pressable
             onPress={startGame}
@@ -141,18 +193,10 @@ export default function TapSpeedGame({ onSuccess, onClose }: TapSpeedGameProps) 
             }
             style={s.startBtn}
           >
-            <Text style={s.startBtnText}>{finished ? "PLAY AGAIN" : "START"}</Text>
+            <Text style={s.startBtnText}>START</Text>
           </Pressable>
         </Animated.View>
-      )}
-
-      {finished && (
-        <View style={s.resultRow}>
-          <Text style={[s.resultText, { color: tps >= TARGET_TPS ? colors.green : colors.danger }]}>
-            {tps >= TARGET_TPS ? "Target reached!" : `Need ${TARGET_TPS} TPS`}
-          </Text>
-        </View>
-      )}
+      ) : null}
     </GameOverlay>
   );
 }

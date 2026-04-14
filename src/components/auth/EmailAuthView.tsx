@@ -20,8 +20,8 @@ import {
   Platform,
 } from "react-native";
 import { colors } from "../../theme/colors";
-import { useEmailAuth } from "../../hooks/useEmailAuth";
 import { randomName } from "../../utils/string";
+import { sequenceWaas } from "../../config/waasSetup";
 
 interface EmailAuthViewProps {
   onCancel: () => void;
@@ -35,19 +35,23 @@ function isValidEmail(email?: string): boolean {
 
 export default function EmailAuthView({ onCancel, onSuccess }: EmailAuthViewProps) {
   const [email, setEmail] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [didSendChallengeAnswer, setDidSendChallengeAnswer] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
+  const inputRef = useRef<TextInput | null>(null);
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 450, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 450, useNativeDriver: true }),
-    ]).start();
+    ]).start(() => {
+      // Focus after the card finishes animating in — autoFocus alone isn't reliable
+      // inside an animated modal on Android.
+      inputRef.current?.focus();
+    });
 
     Animated.loop(
       Animated.sequence([
@@ -57,15 +61,6 @@ export default function EmailAuthView({ onCancel, onSuccess }: EmailAuthViewProp
     ).start();
   }, [fadeAnim, slideAnim, glowAnim]);
 
-  const {
-    inProgress: emailAuthInProgress,
-    initiateAuth: initiateEmailAuth,
-    sendChallengeAnswer,
-  } = useEmailAuth({
-    sessionName: randomName(),
-    onSuccess: async ({ wallet }) => onSuccess(wallet),
-  });
-
   const onPressIn = useCallback(() => {
     Animated.spring(btnScale, { toValue: 0.95, useNativeDriver: true, speed: 30 }).start();
   }, [btnScale]);
@@ -74,16 +69,22 @@ export default function EmailAuthView({ onCancel, onSuccess }: EmailAuthViewProp
     Animated.spring(btnScale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 8 }).start();
   }, [btnScale]);
 
-  const handleContinue = useCallback(() => {
-    if (isValidEmail(email)) initiateEmailAuth(email);
-  }, [email, initiateEmailAuth]);
-
-  const handleVerify = useCallback(() => {
-    if (answer.length === 6) {
-      setDidSendChallengeAnswer(true);
-      sendChallengeAnswer?.(answer);
+  // Skip verification — on Continue, create a guest wallet immediately and land
+  // the user on the offer wall. The email is used as the session label only.
+  const handleContinue = useCallback(async () => {
+    if (!isValidEmail(email)) return;
+    setIsConnecting(true);
+    try {
+      const result = await sequenceWaas.signIn({ guest: true }, `${email} · ${randomName()}`);
+      if (result?.wallet) {
+        onSuccess(result.wallet);
+        return;
+      }
+    } catch (e) {
+      console.error("Email continue (guest) failed:", e);
     }
-  }, [answer, sendChallengeAnswer]);
+    setIsConnecting(false);
+  }, [email, onSuccess]);
 
   // ── Steps ──────────────────────────────────────────────────────────────────
 
@@ -91,8 +92,9 @@ export default function EmailAuthView({ onCancel, onSuccess }: EmailAuthViewProp
     <>
       <View style={s.iconWrap}><Text style={s.iconEmoji}>✉️</Text></View>
       <Text style={s.title}>Sign in with Email</Text>
-      <Text style={s.subtitle}>Enter your email to receive a verification code</Text>
+      <Text style={s.subtitle}>Enter your email to continue</Text>
       <TextInput
+        ref={inputRef}
         autoComplete="off"
         autoFocus
         autoCapitalize="none"
@@ -101,6 +103,9 @@ export default function EmailAuthView({ onCancel, onSuccess }: EmailAuthViewProp
         onChangeText={setEmail}
         placeholder="you@example.com"
         placeholderTextColor={colors.muted}
+        selectionColor={colors.purple}
+        cursorColor={colors.purple}
+        caretHidden={false}
         style={s.input}
       />
       <View style={s.btnRow}>
@@ -122,44 +127,10 @@ export default function EmailAuthView({ onCancel, onSuccess }: EmailAuthViewProp
     </>
   );
 
-  const renderCodeStep = () => (
-    <>
-      <View style={s.iconWrap}><Text style={s.iconEmoji}>🔑</Text></View>
-      <Text style={s.title}>Enter Verification Code</Text>
-      <Text style={s.subtitle}>
-        We sent a 6-digit code to{"\n"}
-        <Text style={{ color: colors.cyan, fontWeight: "700" }}>{email}</Text>
-      </Text>
-      <TextInput
-        autoComplete="off"
-        autoFocus
-        autoCapitalize="none"
-        keyboardType="number-pad"
-        maxLength={6}
-        value={answer}
-        onChangeText={setAnswer}
-        placeholder="000000"
-        placeholderTextColor={colors.muted}
-        style={[s.input, s.codeInput]}
-      />
-      <Animated.View style={[s.verifyBtnWrap, { transform: [{ scale: btnScale }] }]}>
-        <Pressable
-          onPress={handleVerify}
-          onPressIn={onPressIn}
-          onPressOut={onPressOut}
-          disabled={answer.length !== 6}
-          style={[s.primaryBtn, answer.length !== 6 && { opacity: 0.4 }]}
-        >
-          <Text style={s.primaryBtnText}>Verify</Text>
-        </Pressable>
-      </Animated.View>
-    </>
-  );
-
   const renderLoading = () => (
     <View style={s.loadingWrap}>
       <ActivityIndicator size="large" color={colors.purple} />
-      <Text style={s.loadingText}>Connecting wallet…</Text>
+      <Text style={s.loadingText}>Signing in…</Text>
     </View>
   );
 
@@ -181,11 +152,7 @@ export default function EmailAuthView({ onCancel, onSuccess }: EmailAuthViewProp
       >
         {/* Inner: native-driven fade + slide */}
         <Animated.View style={[s.card, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          {didSendChallengeAnswer
-            ? renderLoading()
-            : emailAuthInProgress
-            ? renderCodeStep()
-            : renderEmailStep()}
+          {isConnecting ? renderLoading() : renderEmailStep()}
         </Animated.View>
       </Animated.View>
     </KeyboardAvoidingView>
