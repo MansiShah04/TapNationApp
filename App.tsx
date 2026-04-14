@@ -1,6 +1,6 @@
 import "./src/config/cryptoSetup";
 import React from "react";
-import { Platform, StatusBar } from "react-native";
+import { LogBox, Platform, StatusBar } from "react-native";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "./src/theme/colors";
@@ -24,6 +24,7 @@ const AppTheme = {
 };
 
 export default function App() {
+  LogBox.ignoreAllLogs();
   const auth = useAuthProvider();
   const wallet = useWalletProvider();
   const offers = useOffersProvider(!!auth.walletAddress);

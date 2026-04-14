@@ -1,7 +1,3 @@
-/**
- * Hook that manages the two-step email authentication flow with Sequence WaaS.
- * Handles initiating auth, responding to the email code challenge, and account linking.
- */
 import { useEffect, useState, useCallback } from "react";
 import { Challenge } from "@0xsequence/waas";
 import { sequenceWaas } from "../config/waasSetup";

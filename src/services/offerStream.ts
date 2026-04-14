@@ -6,6 +6,7 @@
  * each with a unique title/icon/description.
  */
 import type { Offer, GameType } from "../types/offer";
+import { generateOffers, generateOffer, type GeneratedOfferTemplate } from "./offerGenerator";
 
 // ─── 12 unique offer templates ──────────────────────────────────────────────
 
@@ -71,9 +72,14 @@ function instantiate(t: OfferTemplate): Offer {
 const STREAM_DELAYS = [0, 200, 400];
 const GAME_TYPES: GameType[] = ["Tap-to-Stop", "Tap-to-Speed", "Stack-Align"];
 
-/** Pick one random template for each game type — guarantees 3 different games. */
-function pickOnePerGameType(): OfferTemplate[] {
-  return shuffle(GAME_TYPES).map((type) => {
+/** Convert a template-shaped object (AI or static) into a full Offer. */
+function instantiateAny(t: OfferTemplate | GeneratedOfferTemplate): Offer {
+  return instantiate(t as OfferTemplate);
+}
+
+/** Pick one random static template for each game type — guarantees 3 different games. */
+function pickStaticOnePerGameType(gameTypes: GameType[]): OfferTemplate[] {
+  return gameTypes.map((type) => {
     const candidates = OFFER_POOL.filter((t) => t.gameType === type);
     return candidates[Math.floor(Math.random() * candidates.length)];
   });
@@ -84,7 +90,23 @@ export async function streamOffers(
   onChunk: (offer: Offer) => void,
   onDone?: () => void,
 ): Promise<void> {
-  const batch = pickOnePerGameType().map(instantiate);
+  const order = shuffle(GAME_TYPES);
+
+  // Try the AI generator first; if it fails or returns a partial batch, fall back.
+  let templates: Array<OfferTemplate | GeneratedOfferTemplate> = [];
+  try {
+    const ai = await generateOffers(order);
+    if (ai.length === order.length) {
+      templates = ai;
+    }
+  } catch {
+    // Ignore — handled below
+  }
+  if (templates.length !== order.length) {
+    templates = pickStaticOnePerGameType(order);
+  }
+
+  const batch = templates.map(instantiateAny);
   for (let i = 0; i < batch.length; i++) {
     await new Promise<void>((res) => setTimeout(res, STREAM_DELAYS[i]));
     onChunk(batch[i]);
@@ -92,23 +114,51 @@ export async function streamOffers(
   onDone?.();
 }
 
-/**
- * Pick a single new offer whose gameType is NOT present in `excludeGameTypes`,
- * and whose title is NOT in `excludeTitles`. This guarantees the 3 visible
- * offers always have 3 different game types.
- */
-export function pickReplacementOffer(
+/** Static-pool fallback used when the AI call fails or returns nothing. */
+function pickReplacementFromPool(
   excludeGameTypes: GameType[],
   excludeTitles: string[],
 ): Offer | null {
   let candidates = OFFER_POOL.filter(
     (t) => !excludeGameTypes.includes(t.gameType) && !excludeTitles.includes(t.title),
   );
-  // Fallback: if all gameTypes are excluded (shouldn't happen with 3 visible), allow any unseen title
   if (candidates.length === 0) {
     candidates = OFFER_POOL.filter((t) => !excludeTitles.includes(t.title));
   }
   if (candidates.length === 0) return null;
   const chosen = candidates[Math.floor(Math.random() * candidates.length)];
   return instantiate(chosen);
+}
+
+/**
+ * Async replacement offer — asks the AI for a fresh offer of a missing
+ * game type; falls back to the static pool on any failure.
+ */
+export async function pickReplacementOfferAsync(
+  excludeGameTypes: GameType[],
+  excludeTitles: string[],
+): Promise<Offer | null> {
+  const missingType = GAME_TYPES.find((t) => !excludeGameTypes.includes(t));
+  if (missingType) {
+    try {
+      const ai = await generateOffer(missingType);
+      if (ai && !excludeTitles.includes(ai.title)) {
+        return instantiateAny(ai);
+      }
+    } catch {
+      // ignore — fall through to static pool
+    }
+  }
+  return pickReplacementFromPool(excludeGameTypes, excludeTitles);
+}
+
+/**
+ * Synchronous replacement from the static pool only — kept for callers that
+ * can't await. Prefer pickReplacementOfferAsync for AI-first behaviour.
+ */
+export function pickReplacementOffer(
+  excludeGameTypes: GameType[],
+  excludeTitles: string[],
+): Offer | null {
+  return pickReplacementFromPool(excludeGameTypes, excludeTitles);
 }
