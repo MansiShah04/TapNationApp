@@ -1,10 +1,3 @@
-/**
- * Tap-to-Speed mini-game.
- * Player must tap a circular target at 6+ taps/sec over 5 seconds.
- *
- * Uses reanimated for the glow pulse (shadow on UI thread),
- * RN Animated for tap scale + progress bar.
- */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, Animated, StyleSheet } from "react-native";
 import ReAnimated, {
@@ -45,7 +38,6 @@ export default function TapSpeedGame({ onSuccess, onClose, onCancel, onStart }: 
   const btnScale = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
 
-  // Reanimated: glow pulse on UI thread
   const glowProgress = useSharedValue(0);
 
   useEffect(() => {
@@ -63,15 +55,15 @@ export default function TapSpeedGame({ onSuccess, onClose, onCancel, onStart }: 
     shadowRadius: 6 + glowProgress.value * 14,
   }));
 
-  // Game timer
+ //#region Timer
   useEffect(() => {
     if (!running || timeLeft <= 0) return;
 
     const timer = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearTimeout(timer);
   }, [running, timeLeft]);
-
-  // Game end check
+//#endregion
+ 
   useEffect(() => {
     if (timeLeft !== 0 || !running) return;
 
@@ -86,7 +78,7 @@ export default function TapSpeedGame({ onSuccess, onClose, onCancel, onStart }: 
     }
   }, [timeLeft, running, taps, onSuccess]);
 
-  // Animate progress bar
+
   useEffect(() => {
     if (!running) return;
     Animated.timing(progressAnim, {
@@ -96,6 +88,7 @@ export default function TapSpeedGame({ onSuccess, onClose, onCancel, onStart }: 
     }).start();
   }, [timeLeft, running, progressAnim]);
 
+  //Define game start
   const startGame = useCallback(() => {
     setTimeLeft(GAME_TIME);
     setTaps(0);
@@ -105,6 +98,7 @@ export default function TapSpeedGame({ onSuccess, onClose, onCancel, onStart }: 
     onStart?.();
   }, [progressAnim, onStart]);
 
+  //#region Tap to speed management
   const handleTap = useCallback(() => {
     if (!running) return;
     lightTap();
@@ -115,7 +109,7 @@ export default function TapSpeedGame({ onSuccess, onClose, onCancel, onStart }: 
       Animated.spring(tapScale, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 10 }),
     ]).start();
   }, [running, tapScale]);
-
+ //#endregion
   const elapsed = GAME_TIME - timeLeft;
   const tps = calculateTps(taps, elapsed);
   const tpsColor = tps >= TARGET_TPS ? colors.green : tps >= TARGET_TPS * 0.7 ? colors.gold : colors.danger;

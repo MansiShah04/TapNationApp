@@ -1,6 +1,3 @@
-/**
- * Main offer wall screen showing wallet balance, stats, and streaming offer cards.
- */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, Animated, ScrollView, StyleSheet } from "react-native";
 import { colors } from "../../theme/colors";
@@ -23,7 +20,6 @@ interface OfferWallScreenProps {
 
 const AVAX_USD_RATE = 20.48;
 const CLAIM_THRESHOLD_USD = 5;
-// Progress bar dimensions are used to position the coin indicator
 const PROGRESS_TRACK_HEIGHT = 14;
 const COIN_SIZE = 26;
 

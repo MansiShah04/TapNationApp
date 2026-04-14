@@ -1,6 +1,3 @@
-/**
- * Reusable stat chips row used in game overlays and the offer wall.
- */
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { colors } from "../../theme/colors";

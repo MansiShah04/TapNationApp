@@ -1,7 +1,3 @@
-/**
- * Haptic feedback helpers. Wraps expo-haptics with silent fallback
- * for devices/emulators that don't support haptics.
- */
 import * as Haptics from "expo-haptics";
 
 export function lightTap() {

@@ -1,14 +1,3 @@
-/**
- * Stack Game (Perfect Alignment).
- *
- * A block slides back and forth at the top of the stack. Player taps DROP
- * to land it. Misalignment trims the block to the overlapping footprint,
- * shrinking the next moving block. Miss the stack entirely and you lose.
- * Stack the target number of blocks to win.
- *
- * The moving block is driven by Animated.Value (no per-frame React renders)
- * so the DROP button stays instantly responsive.
- */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, Animated, StyleSheet, Dimensions } from "react-native";
 import ReAnimated, {
@@ -166,7 +155,7 @@ export default function StackGame({ onSuccess, onClose, onCancel, onStart }: Sta
         cfg.perfectTolerance,
       );
 
-      // ── Missed entirely ─────────────────────────────────────────────────
+      // when stack is missed
       if (!result.placed) {
         resolvedRef.current = true;
         setRunning(false);
@@ -179,7 +168,7 @@ export default function StackGame({ onSuccess, onClose, onCancel, onStart }: Sta
         return;
       }
 
-      // ── Perfect feedback ────────────────────────────────────────────────
+      //when stack is perfect
       if (result.perfect) {
         successNotification();
         setPerfectFlash(true);
@@ -194,7 +183,7 @@ export default function StackGame({ onSuccess, onClose, onCancel, onStart }: Sta
       stackRef.current = newStack;
       setStack(newStack);
 
-      // ── Win ─────────────────────────────────────────────────────────────
+      // on winning
       if (newStack.length - 1 >= cfg.targetStacks) {
         resolvedRef.current = true;
         setRunning(false);
@@ -206,13 +195,12 @@ export default function StackGame({ onSuccess, onClose, onCancel, onStart }: Sta
         return;
       }
 
-      // ── Prep next moving block ──────────────────────────────────────────
+      //preparing the next block
       movingWidthRef.current = result.placed.width;
       setMovingWidth(result.placed.width);
       directionRef.current = 1;
       speedRef.current = cfg.initialSpeed + (newStack.length - 1) * cfg.speedIncrement;
       movingXAnim.setValue(0);
-      // Restart oscillation on next tick so the new width is in place
       setTimeout(() => {
         if (!unmountedRef.current && !resolvedRef.current) startOscillation();
       }, 0);

@@ -1,7 +1,3 @@
-/**
- * Full-screen result overlay with Lottie animation, particle burst, and haptics.
- * Shows after a game win or loss, auto-dismisses after 2.5 seconds.
- */
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, Animated, StyleSheet, Dimensions } from "react-native";
 import LottieView from "lottie-react-native";
@@ -10,9 +6,6 @@ import { successNotification, errorNotification } from "../../utils/haptics";
 import { playWin, playFail } from "../../utils/sounds";
 
 const { width: SCREEN_W } = Dimensions.get("window");
-
-// ─── Particle burst data ────────────────────────────────────────────────────
-
 interface Particle {
   id: number;
   x: number;
@@ -45,12 +38,10 @@ function createParticles(count: number): Particle[] {
   return particles;
 }
 
-// ─── Lottie sources ─────────────────────────────────────────────────────────
 
 const LOTTIE_WIN = require("../../../assets/animations/Success.json");
 const LOTTIE_FAIL = require("../../../assets/animations/fail.json");
 
-// ─── Component ──────────────────────────────────────────────────────────────
 
 interface ResultOverlayProps {
   result: "win" | "fail";

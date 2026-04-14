@@ -1,7 +1,3 @@
-/**
- * Auth-related types shared across login, email auth, and wallet flows.
- */
-
 export interface GoogleUser {
   user: {
     id: string;

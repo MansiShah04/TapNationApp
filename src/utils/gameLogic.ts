@@ -1,11 +1,3 @@
-/**
- * Pure game logic functions extracted from components.
- * Fully testable — no React, no Animated, no side effects.
- */
-
-// ─── Scoring (TapToStop) ────────────────────────────────────────────────────
-
-/** Check if the indicator position (0–1) is within the target zone. */
 export function isInTargetZone(
   position: number,
   zoneMin: number,
@@ -14,14 +6,14 @@ export function isInTargetZone(
   return position > zoneMin && position < zoneMax;
 }
 
-// ─── Scoring (TapSpeed) ─────────────────────────────────────────────────────
+//#region  Scoring- Calculate taps per second. Returns 0 if elapsed < 1s
 
-/** Calculate taps per second. Returns 0 if elapsed < 1s. */
 export function calculateTps(taps: number, elapsedSec: number): number {
   return elapsedSec >= 1 ? taps / elapsedSec : 0;
 }
+//#endregion
 
-/** Check if the player met the TPS target over the full game duration. */
+//#region Check if the player met the TPS target over the full game duration.
 export function isTpsTargetMet(
   totalTaps: number,
   gameDurationSec: number,
@@ -29,8 +21,7 @@ export function isTpsTargetMet(
 ): boolean {
   return totalTaps / gameDurationSec >= targetTps;
 }
-
-// ─── Stack alignment (StackGame) ────────────────────────────────────────────
+//#endregion
 
 export interface StackBlock {
   x: number;
@@ -38,19 +29,11 @@ export interface StackBlock {
 }
 
 export interface DropResult {
-  /** The new block placed on the stack, or null if the drop missed entirely. */
   placed: StackBlock | null;
-  /** Whether the drop was a "perfect" alignment (within tolerance). */
   perfect: boolean;
-  /** Amount of width lost compared to the incoming block. */
   trimmed: number;
 }
 
-/**
- * Compute the result of dropping a moving block onto the last stacked block.
- * Returns the overlapping region (the new block's footprint), or null if
- * the drop missed the stack entirely.
- */
 export function computeDropResult(
   lastBlock: StackBlock,
   incomingX: number,
@@ -78,7 +61,6 @@ export function computeDropResult(
   };
 }
 
-/** Clamp a position so the block stays entirely inside the game area. */
 export function clampBlockX(x: number, blockWidth: number, areaWidth: number): number {
   return Math.max(0, Math.min(areaWidth - blockWidth, x));
 }

@@ -1,7 +1,3 @@
-/**
- * Core offer types used across the offer wall, offer cards, and mock stream.
- */
-
 export type GameType = "Tap-to-Stop" | "Tap-to-Speed" | "Stack-Align";
 
 export interface Offer {

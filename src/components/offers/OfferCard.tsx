@@ -1,9 +1,3 @@
-/**
- * Individual offer card with reward display, progress bar, tags, and a Play CTA.
- * Entry animation is staggered by the `index` prop for the streaming-in effect.
- *
- * Uses reanimated for the CTA glow pulse (shadow on UI thread).
- */
 import React, { useCallback, useEffect, useRef } from "react";
 import { View, Text, Pressable, Animated, StyleSheet } from "react-native";
 import ReAnimated, {
@@ -23,7 +17,6 @@ interface OfferCardProps {
   onPlay: (offer: Offer) => void;
 }
 
-// ─── Rarity / variant helpers ────────────────────────────────────────────────
 
 const getRarityColor = (reward: number): string => {
   if (reward >= 0.3) return colors.gold;
@@ -59,8 +52,6 @@ const getTagStyle = (tag: string) => {
   if (lower.includes("ai")) return TAG_STYLES.ai;
   return TAG_STYLES.default;
 };
-
-// ─── Component ───────────────────────────────────────────────────────────────
 
 export default function OfferCard({ offer, index, onPlay }: OfferCardProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -110,6 +101,7 @@ export default function OfferCard({ offer, index, onPlay }: OfferCardProps) {
     ]).start();
   }, [fadeAnim, translateY, index]);
 
+  //Press in handle
   const handlePressIn = useCallback(() => {
     Animated.spring(btnScale, {
       toValue: 0.93,
@@ -119,17 +111,18 @@ export default function OfferCard({ offer, index, onPlay }: OfferCardProps) {
     }).start();
   }, [btnScale]);
 
+  //Press out handle
   const handlePressOut = useCallback(() => {
     mediumTap();
 
-    // Ripple
+  
     Animated.timing(ripple, {
       toValue: 1,
       duration: 420,
       useNativeDriver: true,
     }).start(() => ripple.setValue(0));
 
-    // Card bounce
+   
     Animated.sequence([
       Animated.spring(cardScale, { toValue: 0.97, useNativeDriver: true, speed: 40 }),
       Animated.spring(cardScale, { toValue: 1.03, useNativeDriver: true, speed: 20 }),

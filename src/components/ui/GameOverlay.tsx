@@ -1,7 +1,3 @@
-/**
- * Shared game overlay shell used by all mini-games (TapGame, TapSpeed, AvoidObstacles).
- * Provides the dark overlay, animated card, header, and cancel button.
- */
 import React, { useEffect, useRef } from "react";
 import { View, Text, Pressable, Animated, StyleSheet } from "react-native";
 import { colors } from "../../theme/colors";

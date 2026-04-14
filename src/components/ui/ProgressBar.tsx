@@ -1,6 +1,3 @@
-/**
- * Reusable thin progress bar used across game overlays and offer cards.
- */
 import React from "react";
 import { View, Animated, StyleSheet, ViewStyle } from "react-native";
 import { colors } from "../../theme/colors";

@@ -1,11 +1,3 @@
-/**
- * Tap-to-Stop mini-game.
- * A moving indicator oscillates across a bar — player must tap STOP
- * when the indicator is inside the green target zone (40%–60%).
- *
- * Uses reanimated for the glow pulse (JS-thread shadow animation)
- * and RN Animated for the oscillating position + button press.
- */
 import React, { useEffect, useRef } from "react";
 import { View, Text, Pressable, Animated, StyleSheet } from "react-native";
 import ReAnimated, {
@@ -37,7 +29,6 @@ export default function TapGame({ onSuccess, onClose, onCancel, onStart }: TapGa
   const directionRef = useRef(1);
   const unmountedRef = useRef(false);
 
-  // Reanimated: glow pulse on UI thread (no JS-thread cost)
   const glowProgress = useSharedValue(0);
 
   useEffect(() => {
@@ -55,9 +46,6 @@ export default function TapGame({ onSuccess, onClose, onCancel, onStart }: TapGa
     shadowRadius: 4 + glowProgress.value * 10,
   }));
 
-  // Oscillating indicator (still uses RN Animated for stopAnimation callback).
-  // Gameplay begins immediately on mount, so notify the parent now — the
-  // session's startedAt must reflect the actual play window.
   useEffect(() => {
     unmountedRef.current = false;
     onStart?.();
@@ -85,6 +73,7 @@ export default function TapGame({ onSuccess, onClose, onCancel, onStart }: TapGa
     };
   }, [position, onStart]);
 
+  //Handle on tap click
   const handleTap = () => {
     mediumTap();
     playTap();
